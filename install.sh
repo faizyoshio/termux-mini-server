@@ -201,6 +201,13 @@ EOF
 bash "$BASE_DIR/update.sh" "\$@"
 EOF
     chmod +x "$PREFIX_BIN/tms-update"
+
+    # tms-fix: Perbaikan otomatis server 24/7 & anti-sleep
+    cat << EOF > "$PREFIX_BIN/tms-fix"
+#!/data/data/com.termux/files/usr/bin/bash
+bash "$BASE_DIR/scripts/fix-server.sh" "\$@"
+EOF
+    chmod +x "$PREFIX_BIN/tms-fix"
 fi
 
 # Setup Autostart Termux:Boot jika aplikasi terpasang

@@ -113,7 +113,7 @@ bash install.sh
 1. Meminta izin penyimpanan internal Android (`termux-setup-storage`) dan mengaktifkan CPU Wake-Lock (`termux-wake-lock`).
 2. Memasang seluruh dependensi sistem: `nodejs`, `openssh`, `proot`, `proot-distro`, `curl`, `wget`, `zip`, `unzip`, `tar`, `net-tools`.
 3. Mengunduh dan memasang distro Ubuntu resmi melalui `proot-distro` serta menyetel konfigurasi OpenSSH di port `2222`.
-4. Membuat pintasan perintah terminal global (`tms-server`, `tms-stop`, `tms-status`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
+4. Membuat pintasan perintah terminal global (`tms-server`, `tms-stop`, `tms-status`, `tms-fix`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
 5. Membersihkan sisa *cache* instalasi dan langsung menyalakan server secara otomatis.
 
 ---
@@ -198,6 +198,7 @@ Setelah instalasi selesai, Anda dapat menjalankan perintah singkat ini langsung 
 | :--- | :--- |
 | `tms-server` | Menjalankan Web Dashboard (port 8080) dan Ubuntu VPS SSH (port 2222). |
 | `tms-status` | Memeriksa status port, menampilkan IP Wi-Fi lokal dan IP Tailscale aktif. |
+| `tms-fix` | **Auto-Repair & Stabilizer 24/7**: Mengunci CPU wake-lock, mengatasi phantom killer, & restart server otomatis. |
 | `tms-stop` | Menghentikan seluruh proses server dan Ubuntu VPS secara aman. |
 | `tms-update` | Memperbarui kode repositori ke versi terbaru dari GitHub tanpa menghapus data. |
 | `tms-app` | Manajemen App Store (`tms-app [adguard|mariadb|postgresql|caddy|syncthing|aria2] [install|start|stop|status]`). |
@@ -213,7 +214,7 @@ Setelah instalasi selesai, Anda dapat menjalankan perintah singkat ini langsung 
 termux-mini-server/
 ├── install.sh                # Skrip instalasi otomatis 1-klik & setup Termux:Boot
 ├── update.sh                 # Skrip pembaruan otomatis tanpa perlu install ulang
-├── start.sh                  # Skrip peluncur layanan (Panel + VPS SSH)
+├── start.sh                  # Skrip peluncur layanan (Panel + VPS SSH + Wake-Lock)
 ├── stop.sh                   # Skrip penghenti layanan
 ├── status.sh                 # Skrip diagnostik status port & IP
 ├── README.md                 # Dokumentasi Bahasa Inggris (Utama)
@@ -224,6 +225,7 @@ termux-mini-server/
 │   └── public/
 │       └── index.html        # Antarmuka web panel modern responsif
 └── scripts/
+    ├── fix-server.sh         # Mesin auto-repair & stabilisasi server 24/7
     ├── app-manager.sh        # Pengelola instalasi & layanan App Store
     ├── backup.sh             # Skrip generator pencadangan sistem otomatis
     ├── restore.sh            # Utilitas pemulihan cadangan sistem
@@ -234,24 +236,31 @@ termux-mini-server/
 
 ---
 
-## ❄️ Panduan Stabilitas 24/7 (Non-Stop Server)
+## ❄️ Panduan Stabilitas 24/7 (Anti-Kill & Non-Stop Server)
 
 Jika smartphone Android digunakan sebagai server yang menyala terus menerus:
 
-1. **Nonaktifkan Pembatasan Baterai Android**:
+1. **Jalankan Skrip Perbaikan Otomatis (`tms-fix`)**:
+   * Jika Termux tiba-tiba mati atau port tidak merespons, cukup jalankan:
+     ```bash
+     tms-fix
+     ```
+   * Skrip ini otomatis menyalakan CPU Wake-Lock, memulihkan batas child process Android (Phantom Process Killer), memverifikasi Termux:Boot, dan menyalakan kembali Web Panel serta OpenSSH jika mati.
+
+2. **Nonaktifkan Pembatasan Baterai Android (Wajib Mutlak)**:
    * Buka *Pengaturan HP* -> *Aplikasi* -> *Termux* -> *Baterai* -> Pilih **Tidak Dibatasi / Unrestricted**.
+   * Buka layar *Recent Apps / Multitasking*, cari kartu Termux, lalu tekan ikon **Gembok / Lock** agar tidak dibersihkan saat menutup semua aplikasi.
    * Lakukan hal yang sama untuk aplikasi **Tailscale**.
-2. **Pastikan CPU Wake-Lock Aktif**:
-   * Skrip instalasi telah otomatis menyalakan wake-lock agar CPU HP tidak masuk ke mode *deep sleep* saat layar terkunci.
-3. **Android 12+ (Solusi Phantom Process Killer)**:
-   * Pada Android 12 ke atas, sistem dapat membunuh proses latar belakang Termux. Untuk mematikannya, jalankan perintah ADB ini sekali dari laptop/PC:
+
+3. **Android 12–14 (Phantom Process Killer)**:
+   * Pada Android 12 ke atas, sistem OS memiliki batas 32 child process latar belakang. Skrip `tms-fix` otomatis mencoba melonggarkan batas ini. Anda juga dapat menjalankannya sekali via ADB dari laptop:
      ```bash
      adb shell "/system/bin/device_config put activity_manager max_phantom_processes 2147483647"
      ```
-4. **Manajemen Suhu Perangkat**:
-   * Lepaskan *casing* pelindung HP.
-   * Dirikan HP atau arahkan kipas mini USB kecil ke bodi belakang HP agar suhu tetap adem.
-   * Gunakan kepala charger dan kabel yang berkualitas baik.
+
+4. **Manajemen Suhu & Layar**:
+   * Di Web Dashboard, gunakan tombol **Layar Redup 0% (Hemat Daya)** untuk menurunkan panas layar dan menghemat daya baterai.
+   * Lepaskan *casing* pelindung HP dan letakkan HP di tempat berventilasi baik.
 
 ---
 

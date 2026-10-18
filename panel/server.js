@@ -31,6 +31,23 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 // ------------------------------------------------------------------
+// WAKE-LOCK & HARDWARE STATE
+// ------------------------------------------------------------------
+let isWakeLockActive = true;
+try {
+  exec('termux-wake-lock 2>/dev/null || true');
+} catch (e) {}
+
+function checkTermuxApi() {
+  const paths = [
+    '/data/data/com.termux/files/usr/bin/termux-torch',
+    '/data/data/com.termux/files/usr/bin/termux-battery-status',
+    '/data/data/com.termux/files/usr/bin/termux-vibrate'
+  ];
+  return paths.some(p => fs.existsSync(p));
+}
+
+// ------------------------------------------------------------------
 // AUTENTIKASI & SESI & BRUTE-FORCE RATE LIMITER
 // ------------------------------------------------------------------
 let authConfig = { username: 'admin', password: 'admin123', tailscaleOverride: '' };
@@ -722,6 +739,10 @@ const server = http.createServer(async (req, res) => {
         disk,
         thermal,
         battery,
+        hardware: {
+          wakeLock: isWakeLockActive,
+          hasTermuxApi: checkTermuxApi()
+        },
         network: netInfo,
         netSpeed: currentNetSpeed,
         topProcesses: topProcs,
@@ -1165,21 +1186,50 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 12. Device Controls (Termux-API)
+    // 12. Device Controls (Termux-API & Wake-Lock)
     if (pathname === '/api/device/action' && req.method === 'POST') {
       try {
         const body = await parseJSONBody(req);
         const action = body.action;
         let cmd = '';
-        if (action === 'wakelock_on') cmd = 'termux-wake-lock';
-        else if (action === 'wakelock_off') cmd = 'termux-wake-unlock';
-        else if (action === 'torch_on') cmd = 'termux-torch on';
-        else if (action === 'torch_off') cmd = 'termux-torch off';
-        else if (action === 'vibrate') cmd = 'termux-vibrate -d 400';
+
+        if (action === 'wakelock_on') {
+          cmd = 'termux-wake-lock';
+          isWakeLockActive = true;
+        } else if (action === 'wakelock_off') {
+          cmd = 'termux-wake-unlock';
+          isWakeLockActive = false;
+        } else if (action === 'torch_on') {
+          cmd = 'termux-torch on';
+        } else if (action === 'torch_off') {
+          cmd = 'termux-torch off';
+        } else if (action === 'vibrate') {
+          cmd = 'termux-vibrate -d 400';
+        } else if (action === 'brightness_dim') {
+          cmd = 'termux-brightness 0';
+        } else if (action === 'brightness_normal') {
+          cmd = 'termux-brightness 128';
+        } else if (action === 'brightness_max') {
+          cmd = 'termux-brightness 255';
+        } else if (action === 'notification') {
+          cmd = 'termux-notification -t "Termux Mini Server" -c "Server berjalan normal (Wake-Lock Aktif)" --id 8080';
+        } else if (action === 'tts') {
+          cmd = 'termux-tts-speak "Termux Mini Server is online and healthy"';
+        } else if (action === 'fix_server') {
+          const fixScript = path.join(BASE_DIR, 'scripts/fix-server.sh');
+          exec(`bash "${fixScript}" > /dev/null 2>&1 &`);
+          isWakeLockActive = true;
+          sendJSON(res, 200, { ok: true, message: 'Auto-Repair & Stabilizer server dijalankan di latar belakang.' });
+          return;
+        } else if (action === 'install_api') {
+          exec('pkg install -y termux-api > /dev/null 2>&1 &');
+          sendJSON(res, 200, { ok: true, message: 'Pemasangan paket termux-api sedang berjalan...' });
+          return;
+        }
 
         if (cmd) {
           exec(cmd + ' 2>/dev/null');
-          sendJSON(res, 200, { ok: true, message: `Aksi ${action} berhasil dikirim.` });
+          sendJSON(res, 200, { ok: true, message: `Aksi ${action} berhasil dijalankan.` });
         } else {
           sendJSON(res, 400, { ok: false, message: 'Aksi tidak dikenal.' });
         }

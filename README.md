@@ -113,7 +113,7 @@ bash install.sh
 1. Acquires Android storage permissions (`termux-setup-storage`) and enables CPU Wake-Lock (`termux-wake-lock`).
 2. Installs essential host packages: `nodejs`, `openssh`, `proot`, `proot-distro`, `curl`, `wget`, `zip`, `unzip`, `tar`, `net-tools`.
 3. Sets up the official Ubuntu rootfs via `proot-distro` and configures OpenSSH on port `2222`.
-4. Installs global CLI helper shortcuts (`tms-server`, `tms-stop`, `tms-status`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
+4. Installs global CLI helper shortcuts (`tms-server`, `tms-stop`, `tms-status`, `tms-fix`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
 5. Cleans up package caches and automatically launches the server.
 
 ---
@@ -190,6 +190,29 @@ Tailscale creates an encrypted private mesh network (WireGuard-based) between yo
 
 ---
 
+## 🛡️ 24/7 Server Persistence & Anti-Kill Guide
+
+Android smartphones aggressively suspend background tasks and kill processes to save battery. To ensure your Termux Mini Server runs **24/7 without interruption**:
+
+### 1. Run Auto-Repair & Stabilizer (`tms-fix`)
+If your server ever stops unexpectedly, ports fail to bind, or Termux is terminated by the system, simply run:
+```bash
+tms-fix
+```
+What `tms-fix` does automatically:
+- Acquires an Android CPU Wake-Lock (`termux-wake-lock`) so CPU never enters deep sleep when the screen turns off.
+- Mitigates the Android 12–14 **Phantom Process Killer** limit (`max_phantom_processes`).
+- Verifies and restores all `$PREFIX/bin` CLI shortcuts (`tms-server`, `tms-fix`, `tms-update`, etc.).
+- Verifies `Termux:Boot` auto-launch scripts.
+- Cleans orphaned lockfiles and restarts crashed background services (Web Panel & Ubuntu VPS OpenSSH).
+
+### 2. Android Battery Optimization Settings (Crucial)
+1. Open phone **Settings > Apps > Termux > Battery** (or *App Battery Usage*).
+2. Set battery policy to **Unrestricted** (or *Don't Optimize / Tidak Dibatasi*).
+3. Open your phone's **Recent Apps / Multitasking Screen**, find Termux, and tap the **Lock Icon** 🔒 to prevent task cleaners from closing it.
+
+---
+
 ## ⌨️ CLI Shortcut Commands
 
 Once installed, you can execute these commands from anywhere in your Termux terminal:
@@ -198,6 +221,7 @@ Once installed, you can execute these commands from anywhere in your Termux term
 | :--- | :--- |
 | `tms-server` | Launches both the Web Dashboard (port 8080) and Ubuntu VPS SSH (port 2222). |
 | `tms-status` | Displays live service status, active ports, Local Wi-Fi IP, and Tailscale IP. |
+| `tms-fix` | **24/7 Anti-Kill & Auto-Repair**: Acquires wake-lock, mitigates phantom killer, and restarts dead services. |
 | `tms-stop` | Safely terminates all panel and VPS processes. |
 | `tms-update` | Updates the server codebase to latest GitHub version without losing data. |
 | `tms-app` | Manage 1-Click Apps (`tms-app [adguard|mariadb|postgresql|caddy|syncthing|aria2] [install|start|stop|status]`). |
@@ -213,7 +237,7 @@ Once installed, you can execute these commands from anywhere in your Termux term
 termux-mini-server/
 ├── install.sh                # 1-Click interactive installer & Termux:Boot setup
 ├── update.sh                 # Safe in-place updater (pulls latest code & reloads panel)
-├── start.sh                  # Service launcher (Panel + VPS SSH)
+├── start.sh                  # Service launcher (Panel + VPS SSH + Wake-Lock)
 ├── stop.sh                   # Graceful service shutdown
 ├── status.sh                 # Status & IP diagnosis script
 ├── README.md                 # English documentation (Primary)
@@ -224,6 +248,7 @@ termux-mini-server/
 │   └── public/
 │       └── index.html        # Single-page modern responsive web panel
 └── scripts/
+    ├── fix-server.sh         # 24/7 Anti-kill stabilizer & auto-repair engine
     ├── app-manager.sh        # 1-Click App Store backend manager
     ├── backup.sh             # Automated system backup generator
     ├── restore.sh            # System restore utility
