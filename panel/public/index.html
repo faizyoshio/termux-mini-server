@@ -3,128 +3,109 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Termux Mini Server & VPS (Tailscale Edition)</title>
+  <title>Termux Mini Server — Telemetry & VPS Manager</title>
   <style>
     :root {
-      --bg-base: #090d16;
-      --bg-surface: #111827;
-      --bg-card: #1f2937;
-      --bg-hover: #374151;
-      --border: #374151;
+      --bg-base: #07090e;
+      --bg-surface: #0e131f;
+      --bg-card: #141c2e;
+      --bg-card-hover: #1b263e;
+      --bg-input: #0a0e17;
+      --border: #222f46;
       --border-focus: #38bdf8;
-      --text-main: #f9fafb;
-      --text-muted: #9ca3af;
-      --primary: #0284c7;
-      --primary-hover: #0369a1;
-      --accent: #38bdf8;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --tailscale-blue: #4f46e5;
-      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --text-main: #f1f5f9;
+      --text-muted: #8492a6;
+      --text-sub: #546681;
+      --cyan: #38bdf8;
+      --cyan-glow: rgba(56, 189, 248, 0.15);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.15);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.15);
+      --rose: #f43f5e;
+      --rose-glow: rgba(244, 63, 94, 0.15);
+      --indigo: #818cf8;
+      --indigo-glow: rgba(129, 140, 248, 0.15);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Consolas, monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background-color: var(--bg-base);
       color: var(--text-main);
-      font-family: var(--font-family);
-      font-size: 14px;
+      font-family: var(--font-sans);
+      font-size: 13px;
       line-height: 1.5;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      overflow-x: hidden;
     }
 
-    /* Utilitas & Tombol */
-    button, input, select, textarea { font-family: inherit; font-size: inherit; }
+    /* Scrollbar minimalis */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-sub); }
+
+    /* Button system */
+    button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      padding: 8px 14px;
+      padding: 7px 13px;
       border-radius: 6px;
-      border: 1px solid transparent;
+      border: 1px solid var(--border);
       font-weight: 500;
+      font-size: 12px;
       cursor: pointer;
-      transition: all 0.2s ease;
-      color: #fff;
+      transition: all 0.15s ease;
       background: var(--bg-card);
-      border-color: var(--border);
+      color: var(--text-main);
+      user-select: none;
     }
-    .btn:hover { background: var(--bg-hover); }
-    .btn-primary { background: var(--primary); border-color: var(--primary-hover); }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-success { background: var(--success); }
-    .btn-danger { background: var(--danger); }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn:hover { background: var(--bg-card-hover); border-color: var(--text-sub); }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #0369a1; border-color: #0284c7; color: #fff; }
+    .btn-primary:hover { background: #0284c7; border-color: var(--cyan); }
+    .btn-success { background: #047857; border-color: #059669; color: #fff; }
+    .btn-success:hover { background: #059669; }
+    .btn-danger { background: #be123c; border-color: #e11d48; color: #fff; }
+    .btn-danger:hover { background: #e11d48; }
+    .btn-xs { padding: 3px 8px; font-size: 11px; border-radius: 4px; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* Badge & Tag system */
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
+      gap: 5px;
+      padding: 3px 8px;
       border-radius: 9999px;
       font-size: 11px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      font-family: var(--font-mono);
+      letter-spacing: 0.3px;
     }
-    .badge-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-danger { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-    .badge-tailscale { background: rgba(79, 70, 229, 0.2); color: #818cf8; border: 1px solid rgba(79, 70, 229, 0.4); }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .badge-emerald { background: var(--emerald-glow); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-emerald .badge-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
+    .badge-amber { background: var(--amber-glow); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-amber .badge-dot { background: #f59e0b; }
+    .badge-rose { background: var(--rose-glow); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-rose .badge-dot { background: #f43f5e; }
+    .badge-indigo { background: var(--indigo-glow); color: #a5b4fc; border: 1px solid rgba(129, 140, 248, 0.3); }
+    .badge-indigo .badge-dot { background: #818cf8; }
+    .badge-cyan { background: var(--cyan-glow); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 
-    /* Login Modal */
-    #login-view {
-      position: fixed;
-      inset: 0;
-      background: rgba(9, 13, 22, 0.95);
-      backdrop-filter: blur(8px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      padding: 16px;
-    }
-    .login-box {
-      width: 100%;
-      max-width: 380px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 28px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-    .login-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--accent);
-    }
-    .form-group { margin-bottom: 16px; text-align: left; }
-    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-    .form-input {
-      width: 100%;
-      padding: 10px 12px;
-      background: var(--bg-base);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-main);
-      outline: none;
-      transition: border 0.2s;
-    }
-    .form-input:focus { border-color: var(--border-focus); }
-
-    /* Layout Utama */
+    /* Header Nav */
     header {
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border);
-      padding: 10px 20px;
+      padding: 10px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -132,23 +113,44 @@
       top: 0;
       z-index: 100;
     }
-    .brand {
+    .brand-group {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 16px;
-      font-weight: 700;
+      gap: 12px;
     }
-    .brand span { color: var(--accent); }
-    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .brand-logo span { color: var(--cyan); }
+    .header-telemetry {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .stat-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-    .app-container {
+    /* Layout Frame */
+    .app-frame {
       display: flex;
       flex: 1;
-      overflow: hidden;
+      min-height: calc(100vh - 54px);
     }
-
-    /* Sidebar Nav */
     nav.sidebar {
       width: 220px;
       background: var(--bg-surface);
@@ -157,115 +159,217 @@
       flex-direction: column;
       padding: 12px 8px;
       gap: 4px;
+      flex-shrink: 0;
     }
-    .nav-item {
+    .nav-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 8px 12px 4px;
+    }
+    .nav-btn {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 14px;
-      border-radius: 8px;
+      padding: 9px 12px;
+      border-radius: 6px;
       color: var(--text-muted);
       cursor: pointer;
+      font-size: 13px;
       font-weight: 500;
       transition: all 0.15s;
     }
-    .nav-item:hover { background: var(--bg-card); color: var(--text-main); }
-    .nav-item.active { background: rgba(56, 189, 248, 0.15); color: var(--accent); font-weight: 600; }
+    .nav-btn:hover { background: var(--bg-card); color: #fff; }
+    .nav-btn.active {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--cyan);
+      border-left: 3px solid var(--cyan);
+      border-radius: 0 6px 6px 0;
+      font-weight: 600;
+    }
 
-    /* Content Area */
-    main.content {
+    main.viewport {
       flex: 1;
-      padding: 20px;
+      padding: 18px 24px;
       overflow-y: auto;
       background: var(--bg-base);
     }
-    .tab-pane { display: none; }
-    .tab-pane.active { display: block; animation: fadeIn 0.2s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .view-pane { display: none; }
+    .view-pane.active { display: block; animation: slideUp 0.18s ease-out; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
     /* Cards & Grids */
-    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
-    .card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
     }
-    .card-header {
+    .dual-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .t-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      position: relative;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .t-card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 8px;
     }
-    .card-title { font-size: 14px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-    .card-value { font-size: 24px; font-weight: 700; color: var(--text-main); }
-    .card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .t-card-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .t-card-val {
+      font-size: 24px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+    }
+    .t-card-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-    /* Progress bar */
-    .progress-bar-bg {
-      background: var(--bg-hover);
-      height: 6px;
-      border-radius: 3px;
-      overflow: hidden;
+    /* Sparkline Canvas */
+    .sparkline-box {
+      width: 100%;
+      height: 48px;
       margin-top: 8px;
+      position: relative;
     }
-    .progress-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.3s; }
+    .sparkline-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
 
-    /* Tailscale Special Card */
-    .tailscale-box {
-      background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(31, 41, 55, 0.8) 100%);
-      border: 1px solid rgba(99, 102, 241, 0.4);
-      border-radius: 10px;
-      padding: 18px;
-      margin-bottom: 20px;
+    /* Tailscale Hero Banner */
+    .ts-hero {
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.16) 0%, rgba(20, 28, 46, 0.95) 100%);
+      border: 1px solid rgba(129, 140, 248, 0.35);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 18px;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
     }
-    .tailscale-info h3 { font-size: 16px; color: #a5b4fc; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-    .tailscale-ip-display {
+    .ts-hero-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #c7d2fe;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ts-ip-badge {
       font-family: var(--font-mono);
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 700;
       color: #fff;
-      background: rgba(0,0,0,0.3);
-      padding: 4px 10px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 5px 12px;
       border-radius: 6px;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 6px;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
     }
+    .ts-ip-badge:hover { border-color: var(--cyan); background: rgba(0,0,0,0.6); }
 
-    /* Terminal View */
-    .terminal-container {
-      background: #000;
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      font-family: var(--font-sans);
+    }
+    .data-table th {
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--text-main);
+    }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+    /* Terminal */
+    .term-window {
+      background: #05070b;
       border: 1px solid var(--border);
       border-radius: 8px;
       display: flex;
       flex-direction: column;
-      height: 550px;
+      height: 580px;
       overflow: hidden;
     }
-    .terminal-header {
-      background: #111827;
-      padding: 8px 12px;
+    .term-topbar {
+      background: var(--bg-surface);
+      padding: 8px 14px;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-family: var(--font-mono);
       font-size: 12px;
+      color: var(--text-muted);
     }
-    .terminal-body {
+    .term-shortcuts {
+      background: var(--bg-card);
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+    }
+    .term-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .term-pill:hover { background: var(--bg-card-hover); border-color: var(--cyan); }
+    .term-screen {
       flex: 1;
-      padding: 12px;
+      padding: 14px;
       overflow-y: auto;
       font-family: var(--font-mono);
       font-size: 13px;
@@ -273,49 +377,56 @@
       white-space: pre-wrap;
       word-break: break-all;
     }
-    .terminal-input-bar {
+    .term-prompt-line {
       display: flex;
-      background: #0b1120;
+      align-items: center;
+      background: #080c14;
       border-top: 1px solid var(--border);
-      padding: 8px;
+      padding: 8px 12px;
       gap: 8px;
     }
-    .terminal-input-bar input {
+    .term-prompt-line input {
       flex: 1;
       background: transparent;
       border: none;
       color: #fff;
       font-family: var(--font-mono);
+      font-size: 13px;
       outline: none;
     }
 
-    /* File Manager */
-    .file-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
+    /* Toast system */
+    #toast-box {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
     }
-    .file-table th, .file-table td {
-      padding: 10px 12px;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-    .file-table th { color: var(--text-muted); font-size: 12px; font-weight: 600; }
-    .file-table tr:hover td { background: var(--bg-hover); }
-    .file-item-name {
+    .toast {
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #334155;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+      animation: toastIn 0.2s ease forwards;
+      pointer-events: auto;
       display: flex;
       align-items: center;
       gap: 8px;
-      cursor: pointer;
-      font-weight: 500;
     }
-    .file-item-name:hover { color: var(--accent); }
+    @keyframes toastIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
     /* Modal */
-    .modal-overlay {
+    .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,0.75);
       backdrop-filter: blur(4px);
       display: none;
       align-items: center;
@@ -323,20 +434,20 @@
       z-index: 1000;
       padding: 16px;
     }
-    .modal-overlay.active { display: flex; }
-    .modal-card {
+    .modal-backdrop.active { display: flex; }
+    .modal-dialog {
       background: var(--bg-surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 8px;
       width: 100%;
-      max-width: 600px;
+      max-width: 650px;
       max-height: 85vh;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
     }
     .modal-header {
-      padding: 14px 18px;
+      padding: 12px 18px;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
@@ -344,244 +455,387 @@
       font-weight: 600;
     }
     .modal-body { padding: 18px; overflow-y: auto; flex: 1; }
-    .modal-footer { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-footer { padding: 10px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
 
     /* Responsive */
     @media (max-width: 768px) {
-      .app-container { flex-direction: column; }
+      .app-frame { flex-direction: column; }
       nav.sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; padding: 6px; }
-      .nav-item { padding: 6px 10px; font-size: 13px; white-space: nowrap; }
-      main.content { padding: 12px; }
+      .nav-label { display: none; }
+      .nav-btn { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
+      main.viewport { padding: 12px; }
+      .header-telemetry .stat-pill:nth-child(n+2) { display: none; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Modal Login -->
-  <div id="login-view">
-    <div class="login-box">
-      <div class="login-title">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        Termux Mini Server
+  <!-- Toast Container -->
+  <div id="toast-box"></div>
+
+  <!-- Login Modal View -->
+  <div id="login-view" style="position: fixed; inset: 0; background: rgba(7,9,14,0.96); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 16px;">
+    <div style="width: 100%; max-width: 360px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 26px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);">
+      <div style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Termux <span>MiniServer</span>
       </div>
-      <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 20px;">Masuk untuk mengelola Linux VPS & Server</p>
+      <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 20px;">Autentikasi administrator diperlukan</p>
       <form id="login-form">
-        <div class="form-group">
-          <label>USERNAME</label>
-          <input type="text" id="login-user" class="form-input" value="admin" required autofocus>
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-sub); margin-bottom: 4px;">USERNAME</label>
+          <input type="text" id="login-user" style="width: 100%; padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: #fff; outline: none;" value="admin" required autofocus>
         </div>
-        <div class="form-group">
-          <label>PASSWORD</label>
-          <input type="password" id="login-pass" class="form-input" value="admin123" required>
+        <div style="margin-bottom: 18px;">
+          <label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-sub); margin-bottom: 4px;">PASSWORD</label>
+          <input type="password" id="login-pass" style="width: 100%; padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: #fff; outline: none;" value="admin123" required>
         </div>
-        <div id="login-error" style="color: var(--danger); font-size: 12px; margin-bottom: 12px; display: none;"></div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px;">Masuk ke Panel</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 9px;">Masuk ke Server</button>
       </form>
     </div>
   </div>
 
   <!-- Header -->
   <header>
-    <div class="brand">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
-      Termux <span>MiniServer</span>
-      <span class="badge badge-tailscale" id="hdr-ts-badge">Tailscale</span>
+    <div class="brand-group">
+      <div class="brand-logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+        Termux <span>MiniServer</span>
+      </div>
+      <span class="badge badge-indigo" id="hdr-ts-badge">
+        <span class="badge-dot"></span>
+        <span id="hdr-ts-label">Tailscale Checking</span>
+      </span>
     </div>
-    <div class="header-actions">
-      <span id="hdr-uptime" style="color: var(--text-muted); font-size: 12px;">Uptime: -</span>
-      <button class="btn btn-sm" onclick="logout()">Logout</button>
+
+    <div class="header-telemetry">
+      <div class="stat-pill" title="Kecepatan Transfer Jaringan">
+        <span style="color: var(--cyan);">↓</span> <span id="hdr-net-rx" class="mono">0 KB/s</span>
+        <span style="color: var(--indigo); margin-left: 4px;">↑</span> <span id="hdr-net-tx" class="mono">0 KB/s</span>
+      </div>
+      <div class="stat-pill" title="Load Average (1m, 5m, 15m)">
+        <span style="color: var(--text-sub);">LOAD</span> <span id="hdr-load" class="mono">0.00, 0.00</span>
+      </div>
+      <div class="stat-pill" title="Uptime Server">
+        <span style="color: var(--text-sub);">UP</span> <span id="hdr-uptime" class="mono">0h 0m</span>
+      </div>
+      <button class="btn btn-xs" onclick="logout()">Logout</button>
     </div>
   </header>
 
-  <!-- Container -->
-  <div class="app-container">
-    <!-- Sidebar -->
+  <!-- App Layout -->
+  <div class="app-frame">
+    <!-- Sidebar Navigation -->
     <nav class="sidebar">
-      <div class="nav-item active" onclick="switchTab('dashboard')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <div class="nav-label">Monitoring</div>
+      <div class="nav-btn active" onclick="switchView('dashboard')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Dashboard
       </div>
-      <div class="nav-item" onclick="switchTab('vps')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+      <div class="nav-btn" onclick="switchView('vps')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
         Ubuntu VPS
       </div>
-      <div class="nav-item" onclick="switchTab('terminal')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      <div class="nav-btn" onclick="switchView('terminal')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         Web Terminal
       </div>
-      <div class="nav-item" onclick="switchTab('files')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+
+      <div class="nav-label" style="margin-top: 10px;">Manajemen</div>
+      <div class="nav-btn" onclick="switchView('files')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         File Manager
       </div>
-      <div class="nav-item" onclick="switchTab('pm2')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      <div class="nav-btn" onclick="switchView('pm2')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
         Proses & PM2
       </div>
-      <div class="nav-item" onclick="switchTab('settings')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <div class="nav-btn" onclick="switchView('settings')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Pengaturan
       </div>
     </nav>
 
-    <!-- Main Views -->
-    <main class="content">
+    <!-- Main Viewport -->
+    <main class="viewport">
 
-      <!-- TAB 1: DASHBOARD -->
-      <div id="tab-dashboard" class="tab-pane active">
+      <!-- VIEW 1: DASHBOARD -->
+      <div id="view-dashboard" class="view-pane active">
 
-        <!-- Tailscale Connection Highlight Banner -->
-        <div class="tailscale-box">
-          <div class="tailscale-info">
-            <h3>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
-              Koneksi Jarak Jauh Tailscale (Zero Port-Forwarding)
-            </h3>
-            <p style="font-size: 13px; color: #c7d2fe;">Akses Web Dashboard dan Ubuntu SSH dari laptop/HP Anda di mana saja:</p>
-            <div class="tailscale-ip-display" id="ts-ip-text">Memeriksa Tailscale...</div>
-          </div>
+        <!-- Tailscale Hero Access Card -->
+        <div class="ts-hero">
           <div>
-            <button class="btn btn-primary" onclick="copyTailscaleUrl()">Salin URL Web</button>
-            <button class="btn" onclick="openTailscaleHelp()">Panduan Setup</button>
+            <div class="ts-hero-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+              Tailscale Gateway (Zero Port-Forwarding)
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+              Akses server dari laptop/PC di luar jaringan menggunakan IP privat Tailscale:
+            </div>
+            <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <div class="ts-ip-badge" id="ts-badge-copy" onclick="copyText(currentTailscaleIp ? 'http://' + currentTailscaleIp + ':8080' : '', 'Tautan Web Tailscale disalin!')">
+                <span id="ts-ip-text">Memeriksa IP Tailscale...</span>
+                <span style="font-size: 11px; opacity: 0.7;">📋 Salin Web URL</span>
+              </div>
+              <button class="btn btn-sm" onclick="copyText(currentTailscaleIp ? 'ssh root@' + currentTailscaleIp + ' -p 2222' : '', 'Perintah SSH disalin!')">
+                📋 Salin SSH Command
+              </button>
+            </div>
+          </div>
+          <button class="btn btn-xs" onclick="openModal('modal-ts-guide')">Panduan Setup</button>
+        </div>
+
+        <!-- 4 Realtime Sparkline Telemetry Cards -->
+        <div class="telemetry-grid">
+          <!-- Card 1: CPU -->
+          <div class="t-card">
+            <div class="t-card-header">
+              <span class="t-card-label">CPU LOAD</span>
+              <span class="badge badge-cyan" id="c-cpu-cores">- Core</span>
+            </div>
+            <div class="t-card-val" id="c-cpu-val">0%</div>
+            <div class="sparkline-box">
+              <canvas id="chart-cpu" class="sparkline-canvas"></canvas>
+            </div>
+            <div class="t-card-sub">
+              <span id="c-cpu-model">ARM Processor</span>
+              <span id="c-cpu-load">Load: 0.00</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Memory RAM -->
+          <div class="t-card">
+            <div class="t-card-header">
+              <span class="t-card-label">RAM ALLOCATION</span>
+              <span class="badge badge-emerald" id="c-mem-pct">0%</span>
+            </div>
+            <div class="t-card-val" id="c-mem-val">0 / 0 MB</div>
+            <div class="sparkline-box">
+              <canvas id="chart-mem" class="sparkline-canvas"></canvas>
+            </div>
+            <div class="t-card-sub">
+              <span id="c-mem-free">Bebas: 0 MB</span>
+              <span id="c-mem-total">Total: 0 MB</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Network Throughput -->
+          <div class="t-card">
+            <div class="t-card-header">
+              <span class="t-card-label">NETWORK I/O</span>
+              <span class="badge badge-indigo" id="c-net-badge">Live</span>
+            </div>
+            <div class="t-card-val" id="c-net-val">0.0 KB/s</div>
+            <div class="sparkline-box">
+              <canvas id="chart-net" class="sparkline-canvas"></canvas>
+            </div>
+            <div class="t-card-sub">
+              <span>↓ <strong id="c-net-rx" style="color: var(--cyan);">0 KB/s</strong></span>
+              <span>↑ <strong id="c-net-tx" style="color: var(--indigo);">0 KB/s</strong></span>
+            </div>
+          </div>
+
+          <!-- Card 4: Thermal & Battery -->
+          <div class="t-card">
+            <div class="t-card-header">
+              <span class="t-card-label">THERMAL & POWER</span>
+              <span class="badge badge-amber" id="c-temp-val">0 °C</span>
+            </div>
+            <div class="t-card-val" id="c-bat-val">- %</div>
+            <div class="sparkline-box">
+              <canvas id="chart-temp" class="sparkline-canvas"></canvas>
+            </div>
+            <div class="t-card-sub">
+              <span id="c-bat-status">Baterai: -</span>
+              <span id="c-bat-plug">Power: -</span>
+            </div>
           </div>
         </div>
 
-        <!-- 4 Stat Cards -->
-        <div class="grid-4">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">PENGGUNAAN CPU</span>
-              <span class="badge badge-success" id="stat-cpu-cores">- Core</span>
+        <!-- Dual Grid: Storage & Services -->
+        <div class="dual-grid">
+          <!-- Storage Card -->
+          <div class="t-card">
+            <div class="t-card-header">
+              <span class="t-card-label">STORAGE PARTITION</span>
+              <span class="badge badge-cyan" id="c-disk-pct">0%</span>
             </div>
-            <div class="card-value" id="stat-cpu-val">0%</div>
-            <div class="progress-bar-bg"><div class="progress-fill" id="stat-cpu-bar" style="width: 0%"></div></div>
-            <div class="card-sub" id="stat-cpu-model">Memuat data CPU...</div>
+            <div style="margin-top: 8px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+                <span>Termux Data (`/data/data/com.termux/files`)</span>
+                <span class="mono" id="c-disk-detail">0 / 0 GB</span>
+              </div>
+              <div style="background: var(--bg-base); height: 6px; border-radius: 3px; overflow: hidden;">
+                <div id="c-disk-bar" style="background: var(--cyan); height: 100%; width: 0%; transition: width 0.3s;"></div>
+              </div>
+            </div>
+            <div style="margin-top: 14px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+              <span>Tersedia: <strong id="c-disk-free" style="color: #fff;">0 GB</strong></span>
+              <span>Kapasitas Total: <strong id="c-disk-total" style="color: #fff;">0 GB</strong></span>
+            </div>
           </div>
 
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">MEMORI RAM</span>
-              <span class="badge badge-success" id="stat-mem-pct">0%</span>
+          <!-- Services Matrix -->
+          <div class="t-card">
+            <div class="t-card-header">
+              <span class="t-card-label">SERVICES & PORTS</span>
+              <button class="btn btn-xs" onclick="updateTelemetry()">Segarkan</button>
             </div>
-            <div class="card-value" id="stat-mem-val">0 / 0 MB</div>
-            <div class="progress-bar-bg"><div class="progress-fill" id="stat-mem-bar" style="width: 0%"></div></div>
-            <div class="card-sub" id="stat-mem-free">Bebas: 0 MB</div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">PENYIMPANAN DISK</span>
-              <span class="badge badge-success" id="stat-disk-pct">0%</span>
-            </div>
-            <div class="card-value" id="stat-disk-val">0 / 0 GB</div>
-            <div class="progress-bar-bg"><div class="progress-fill" id="stat-disk-bar" style="width: 0%"></div></div>
-            <div class="card-sub" id="stat-disk-free">Sisa: 0 GB</div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">SUHU & BATERAI</span>
-              <span class="badge badge-warning" id="stat-temp-val">0 °C</span>
-            </div>
-            <div class="card-value" id="stat-bat-val">- %</div>
-            <div class="card-sub" id="stat-bat-status">Status Baterai: -</div>
-          </div>
-        </div>
-
-        <!-- Quick Info & VPS Status -->
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">INFORMASI JARINGAN SERVER</span>
-            </div>
-            <table style="width: 100%; font-size: 13px;">
-              <tr><td style="padding: 6px 0; color: var(--text-muted);">IP Wi-Fi Lokal:</td><td style="font-family: var(--font-mono); font-weight: 600;" id="info-local-ip">-</td></tr>
-              <tr><td style="padding: 6px 0; color: var(--text-muted);">IP Tailscale:</td><td style="font-family: var(--font-mono); color: #818cf8; font-weight: 600;" id="info-ts-ip">-</td></tr>
-              <tr><td style="padding: 6px 0; color: var(--text-muted);">Port Web Panel:</td><td style="font-family: var(--font-mono);">8080</td></tr>
-              <tr><td style="padding: 6px 0; color: var(--text-muted);">Port OpenSSH VPS:</td><td style="font-family: var(--font-mono);">2222</td></tr>
+            <table class="data-table">
+              <tr>
+                <td><strong>Web Dashboard</strong></td>
+                <td><span class="badge badge-emerald">Port 8080 (HTTP)</span></td>
+                <td style="text-align: right;"><span class="badge badge-emerald">RUNNING</span></td>
+              </tr>
+              <tr>
+                <td><strong>Ubuntu OpenSSH</strong></td>
+                <td><span class="badge badge-indigo">Port 2222 (SSH)</span></td>
+                <td style="text-align: right;" id="port-vps-status"><span class="badge badge-amber">CHECKING</span></td>
+              </tr>
+              <tr>
+                <td><strong>Tailscale Daemon</strong></td>
+                <td><span class="badge badge-cyan" id="port-ts-ip">100.x.y.z</span></td>
+                <td style="text-align: right;" id="port-ts-status"><span class="badge badge-indigo">MESH</span></td>
+              </tr>
             </table>
           </div>
+        </div>
 
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">KONTROL CEPAT HARDWARE HP</span>
+        <!-- Dual Grid: Top Processes & Quick Actions -->
+        <div class="dual-grid">
+          <!-- Top Processes -->
+          <div class="t-card">
+            <div class="t-card-header">
+              <span class="t-card-label">TOP PROCESSES (KONSUMSI SUMBER DAYA)</span>
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
-              <button class="btn btn-sm" onclick="sendDeviceAction('wakelock_on')">Aktifkan Wake-Lock</button>
-              <button class="btn btn-sm" onclick="sendDeviceAction('wakelock_off')">Lepas Wake-Lock</button>
-              <button class="btn btn-sm" onclick="sendDeviceAction('vibrate')">Uji Getar</button>
-              <button class="btn btn-sm" onclick="sendDeviceAction('torch_on')">Nyalakan Senter</button>
-              <button class="btn btn-sm" onclick="sendDeviceAction('torch_off')">Matikan Senter</button>
+            <div style="overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>PID</th>
+                    <th>PROSES</th>
+                    <th>CPU%</th>
+                    <th>MEM%</th>
+                    <th style="text-align: right;">AKSI</th>
+                  </tr>
+                </thead>
+                <tbody id="top-procs-body">
+                  <tr><td colspan="5" style="color: var(--text-sub);">Memuat proses server...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Hardware Actions -->
+          <div class="t-card">
+            <div class="t-card-header">
+              <span class="t-card-label">HARDWARE CONTROLS & WAKE-LOCK</span>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+              Pastikan Wake-Lock aktif agar CPU smartphone tidak masuk mode deep sleep saat layar mati.
+            </p>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <button class="btn btn-sm" onclick="sendAction('wakelock_on')">⚡ Aktifkan Wake-Lock</button>
+              <button class="btn btn-sm" onclick="sendAction('wakelock_off')">💤 Lepas Wake-Lock</button>
+              <button class="btn btn-sm" onclick="sendAction('torch_on')">🔦 Senter Nyala</button>
+              <button class="btn btn-sm" onclick="sendAction('torch_off')">💡 Senter Mati</button>
+              <button class="btn btn-sm" onclick="sendAction('vibrate')">📳 Uji Getar</button>
             </div>
           </div>
         </div>
+
       </div>
 
-      <!-- TAB 2: UBUNTU VPS -->
-      <div id="tab-vps" class="tab-pane">
-        <div class="card" style="margin-bottom: 20px;">
-          <div class="card-header">
-            <span class="card-title">STATUS UBUNTU LINUX VPS (PROOT)</span>
-            <span class="badge" id="vps-badge-status">Memeriksa...</span>
+      <!-- VIEW 2: UBUNTU VPS -->
+      <div id="view-vps" class="view-pane">
+        <div class="t-card" style="margin-bottom: 16px;">
+          <div class="t-card-header">
+            <span class="t-card-label">DISTRO UBUNTU LINUX VPS (PROOT ENGINE)</span>
+            <span class="badge" id="vps-view-badge">Memeriksa...</span>
           </div>
           <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
-            Distro Ubuntu asli yang berjalan di background Android. Dilengkapi OpenSSH Server aktif di port 2222.
+            Distro Ubuntu asli yang berjalan di latar belakang Android tanpa root. Dilengkapi server OpenSSH di port 2222.
           </p>
-          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <button class="btn btn-primary" onclick="vpsAction('start')">Jalankan VPS</button>
-            <button class="btn btn-danger" onclick="vpsAction('stop')">Matikan VPS</button>
-            <button class="btn" onclick="vpsAction('restart')">Restart VPS</button>
+          <div style="display: flex; gap: 8px; margin-bottom: 18px;">
+            <button class="btn btn-primary" onclick="vpsCtrl('start')">Jalankan OpenSSH VPS</button>
+            <button class="btn btn-danger" onclick="vpsCtrl('stop')">Hentikan OpenSSH VPS</button>
+            <button class="btn" onclick="vpsCtrl('restart')">Restart Layanan</button>
           </div>
 
-          <div style="background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-            <h4 style="font-size: 13px; margin-bottom: 8px; color: var(--accent);">Perintah Koneksi SSH:</h4>
-            <div style="font-family: var(--font-mono); font-size: 13px; color: #fff; margin-bottom: 6px;">
-              <span style="color: var(--text-muted);"># Lewat Tailscale (Jarak Jauh):</span><br>
-              <code id="ssh-ts-cmd">ssh root@100.x.y.z -p 2222</code>
+          <div style="background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--cyan); margin-bottom: 8px;">PERINTAH KONEKSI SSH:</div>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); padding: 8px 12px; border-radius: 4px; margin-bottom: 8px;">
+              <code id="vps-cmd-ts" class="mono" style="color: #fff;">ssh root@100.x.y.z -p 2222</code>
+              <button class="btn btn-xs" onclick="copyText(document.getElementById('vps-cmd-ts').textContent, 'SSH Tailscale disalin!')">Salin</button>
             </div>
-            <div style="font-family: var(--font-mono); font-size: 13px; color: #fff;">
-              <span style="color: var(--text-muted);"># Lewat Wi-Fi Lokal:</span><br>
-              <code id="ssh-local-cmd">ssh root@192.168.x.x -p 2222</code>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); padding: 8px 12px; border-radius: 4px;">
+              <code id="vps-cmd-lan" class="mono" style="color: var(--text-muted);">ssh root@192.168.x.x -p 2222</code>
+              <button class="btn btn-xs" onclick="copyText(document.getElementById('vps-cmd-lan').textContent, 'SSH Lokal disalin!')">Salin</button>
             </div>
-            <div style="margin-top: 10px; font-size: 12px; color: var(--text-muted);">
+            <div style="font-size: 11px; color: var(--text-sub); margin-top: 8px;">
               Password Default: <strong style="color: #fff;">ubuntu123</strong> (User: <strong style="color: #fff;">root</strong> atau <strong style="color: #fff;">ubuntu</strong>)
             </div>
           </div>
         </div>
       </div>
 
-      <!-- TAB 3: WEB TERMINAL -->
-      <div id="tab-terminal" class="tab-pane">
-        <div class="terminal-container">
-          <div class="terminal-header">
-            <span>Terminal Shell (Termux Bash)</span>
+      <!-- VIEW 3: WEB TERMINAL -->
+      <div id="view-terminal" class="view-pane">
+        <div class="term-window">
+          <div class="term-topbar">
+            <span>Terminal Shell (Termux Bash Console)</span>
             <div>
-              <button class="btn btn-sm btn-danger" onclick="killTerminalJob()">Hentikan (Ctrl+C)</button>
-              <button class="btn btn-sm" onclick="clearTerminal()">Bersihkan</button>
+              <button class="btn btn-xs btn-danger" onclick="killActiveTerminal()">Ctrl + C</button>
+              <button class="btn btn-xs" onclick="clearTermScreen()">Clear</button>
             </div>
           </div>
-          <div class="terminal-body" id="term-output">Termux Web Terminal Siap. Ketik perintah di bawah ini dan tekan Enter.\n</div>
-          <div class="terminal-input-bar">
-            <span style="color: var(--accent); font-family: var(--font-mono); font-weight: bold;">$</span>
-            <input type="text" id="term-input" placeholder="Ketik perintah (contoh: ls -la, htop, pkg status, ubuntu)..." onkeydown="handleTerminalKey(event)">
-            <button class="btn btn-sm btn-primary" onclick="sendTerminalCommand()">Kirim</button>
+
+          <!-- Quick Command Launcher Pills -->
+          <div class="term-shortcuts">
+            <span style="font-size: 11px; color: var(--text-sub); align-self: center;">Pintasan:</span>
+            <span class="term-pill" onclick="runPreset('htop')">htop</span>
+            <span class="term-pill" onclick="runPreset('free -h')">free -h</span>
+            <span class="term-pill" onclick="runPreset('df -h')">df -h</span>
+            <span class="term-pill" onclick="runPreset('ip a')">ip a</span>
+            <span class="term-pill" onclick="runPreset('ps aux | head -n 15')">ps aux</span>
+            <span class="term-pill" onclick="runPreset('pkg status')">pkg status</span>
+            <span class="term-pill" onclick="runPreset('tms-status')">tms-status</span>
+          </div>
+
+          <div class="term-screen" id="term-display">Termux Web Terminal Siap. Ketik perintah di bawah dan tekan Enter.&#10;</div>
+          <div class="term-prompt-line">
+            <span style="color: var(--cyan); font-family: var(--font-mono); font-weight: 700;">$</span>
+            <input type="text" id="term-cmd-input" placeholder="Ketik perintah bash..." onkeydown="onTermKey(event)">
+            <button class="btn btn-xs btn-primary" onclick="submitTermCmd()">Kirim</button>
           </div>
         </div>
       </div>
 
-      <!-- TAB 4: FILE MANAGER -->
-      <div id="tab-files" class="tab-pane">
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title" id="fm-current-dir">/data/data/com.termux/files/home</span>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-sm" onclick="promptCreateFile()">+ File</button>
-              <button class="btn btn-sm" onclick="promptCreateFolder()">+ Folder</button>
-              <button class="btn btn-sm btn-primary" onclick="document.getElementById('fm-upload-input').click()">Upload File</button>
-              <input type="file" id="fm-upload-input" style="display: none;" onchange="uploadFile(this)">
+      <!-- VIEW 4: FILE MANAGER -->
+      <div id="view-files" class="view-pane">
+        <div class="t-card">
+          <div class="t-card-header">
+            <div>
+              <span class="t-card-label">EXPLORER: </span>
+              <span id="fm-path-display" class="mono" style="color: #fff; font-size: 12px;">~</span>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-xs" onclick="promptNewFile()">+ File</button>
+              <button class="btn btn-xs" onclick="promptNewFolder()">+ Folder</button>
+              <button class="btn btn-xs btn-primary" onclick="document.getElementById('fm-file-picker').click()">Upload</button>
+              <input type="file" id="fm-file-picker" style="display: none;" onchange="doUploadFile(this)">
             </div>
           </div>
+
+          <!-- Quick Directory Jumps -->
+          <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+            <button class="btn btn-xs" onclick="browsePath('~')">🏠 Termux Home (~)</button>
+            <button class="btn btn-xs" onclick="browsePath('/sdcard')">📱 Internal Storage (/sdcard)</button>
+            <button class="btn btn-xs" onclick="browsePath('/data/data/com.termux/files/usr')">⚙️ Termux Usr</button>
+          </div>
+
           <div style="overflow-x: auto;">
-            <table class="file-table">
+            <table class="data-table">
               <thead>
                 <tr>
                   <th>NAMA</th>
@@ -590,7 +844,7 @@
                   <th style="text-align: right;">AKSI</th>
                 </tr>
               </thead>
-              <tbody id="file-list-body">
+              <tbody id="fm-tbody">
                 <tr><td colspan="4">Memuat berkas...</td></tr>
               </tbody>
             </table>
@@ -598,37 +852,37 @@
         </div>
       </div>
 
-      <!-- TAB 5: PM2 PROCESSES -->
-      <div id="tab-pm2" class="tab-pane">
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">MANAJER PROSES (PM2)</span>
-            <button class="btn btn-sm" onclick="loadPm2()">Segarkan</button>
+      <!-- VIEW 5: PM2 PROCESSES -->
+      <div id="view-pm2" class="view-pane">
+        <div class="t-card">
+          <div class="t-card-header">
+            <span class="t-card-label">PROSES DAEMON & PM2</span>
+            <button class="btn btn-xs" onclick="fetchPm2Data()">Segarkan</button>
           </div>
-          <div id="pm2-container" style="font-size: 13px;">Memeriksa PM2...</div>
+          <div id="pm2-content" style="font-size: 12px;">Memeriksa proses PM2...</div>
         </div>
       </div>
 
-      <!-- TAB 6: SETTINGS -->
-      <div id="tab-settings" class="tab-pane">
-        <div class="card" style="max-width: 480px;">
-          <div class="card-header">
-            <span class="card-title">GANTI KREDENSIAL ADMIN</span>
+      <!-- VIEW 6: SETTINGS -->
+      <div id="view-settings" class="view-pane">
+        <div class="t-card" style="max-width: 440px;">
+          <div class="t-card-header">
+            <span class="t-card-label">KREDENSIAL WEB DASHBOARD</span>
           </div>
-          <form id="settings-form">
-            <div class="form-group">
-              <label>PASSWORD SAAT INI</label>
-              <input type="password" id="set-cur-pass" class="form-input" required>
+          <form id="settings-auth-form" style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+            <div>
+              <label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-sub); margin-bottom: 4px;">PASSWORD SAAT INI</label>
+              <input type="password" id="set-cur-pass" class="form-input" style="width: 100%; padding: 7px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: #fff;" required>
             </div>
-            <div class="form-group">
-              <label>USERNAME BARU</label>
-              <input type="text" id="set-new-user" class="form-input" placeholder="Biarkan kosong jika tidak diubah">
+            <div>
+              <label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-sub); margin-bottom: 4px;">USERNAME BARU</label>
+              <input type="text" id="set-new-user" class="form-input" style="width: 100%; padding: 7px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: #fff;" placeholder="Biarkan kosong jika tetap">
             </div>
-            <div class="form-group">
-              <label>PASSWORD BARU</label>
-              <input type="password" id="set-new-pass" class="form-input" placeholder="Minimal 5 karakter">
+            <div>
+              <label style="display: block; font-size: 11px; font-weight: 600; color: var(--text-sub); margin-bottom: 4px;">PASSWORD BARU</label>
+              <input type="password" id="set-new-pass" class="form-input" style="width: 100%; padding: 7px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; color: #fff;" placeholder="Minimal 5 karakter">
             </div>
-            <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
+            <button type="submit" class="btn btn-primary" style="margin-top: 6px;">Simpan Perubahan</button>
           </form>
         </div>
       </div>
@@ -636,204 +890,335 @@
     </main>
   </div>
 
-  <!-- Modal File Editor -->
-  <div id="editor-modal" class="modal-overlay">
-    <div class="modal-card">
+  <!-- Modal: File Editor -->
+  <div id="modal-editor" class="modal-backdrop">
+    <div class="modal-dialog">
       <div class="modal-header">
-        <span id="editor-filename">Edit Berkas</span>
-        <button class="btn btn-sm" onclick="closeEditor()">✕</button>
+        <span id="editor-title" class="mono">Edit File</span>
+        <button class="btn btn-xs" onclick="closeModal('modal-editor')">✕</button>
       </div>
       <div class="modal-body" style="padding: 0;">
-        <textarea id="editor-content" style="width: 100%; height: 350px; background: #0b1120; color: #fff; border: none; padding: 12px; font-family: var(--font-mono); font-size: 13px; outline: none; resize: none;"></textarea>
+        <textarea id="editor-textarea" style="width: 100%; height: 380px; background: #06090e; color: #f1f5f9; border: none; padding: 12px; font-family: var(--font-mono); font-size: 13px; outline: none; resize: none;"></textarea>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeEditor()">Batal</button>
-        <button class="btn btn-primary" onclick="saveEditorFile()">Simpan</button>
+        <button class="btn btn-xs" onclick="closeModal('modal-editor')">Batal</button>
+        <button class="btn btn-xs btn-primary" onclick="saveEditorContent()">Simpan Berkas</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Panduan Tailscale -->
-  <div id="ts-help-modal" class="modal-overlay">
-    <div class="modal-card">
+  <!-- Modal: Tailscale Setup Guide -->
+  <div id="modal-ts-guide" class="modal-backdrop">
+    <div class="modal-dialog">
       <div class="modal-header">
         <span>Panduan Koneksi Jarak Jauh Tailscale</span>
-        <button class="btn btn-sm" onclick="document.getElementById('ts-help-modal').classList.remove('active')">✕</button>
+        <button class="btn btn-xs" onclick="closeModal('modal-ts-guide')">✕</button>
       </div>
       <div class="modal-body" style="font-size: 13px; line-height: 1.7;">
-        <h4 style="color: var(--accent); margin-bottom: 6px;">1. Pasang Tailscale di HP Server (Android)</h4>
+        <h4 style="color: var(--cyan); margin-bottom: 4px;">1. Pasang Tailscale di HP Android</h4>
         <p style="color: var(--text-muted); margin-bottom: 12px;">
-          Buka Play Store / F-Droid, pasang aplikasi <strong>Tailscale</strong>, lalu login menggunakan akun Google/GitHub Anda dan aktifkan VPN Tailscale.
+          Buka Play Store / F-Droid, pasang <strong>Tailscale</strong>, lalu login menggunakan akun Google/GitHub Anda dan sambungkan VPN.
         </p>
-
-        <h4 style="color: var(--accent); margin-bottom: 6px;">2. Pasang Tailscale di Laptop / PC Anda</h4>
+        <h4 style="color: var(--cyan); margin-bottom: 4px;">2. Pasang Tailscale di Laptop / Komputer</h4>
         <p style="color: var(--text-muted); margin-bottom: 12px;">
-          Pasang Tailscale di Windows/macOS/Linux Anda dari <a href="https://tailscale.com/download" target="_blank" style="color: var(--border-focus);">tailscale.com/download</a> dan login menggunakan akun yang <strong>sama</strong>.
+          Unduh dari <a href="https://tailscale.com/download" target="_blank" style="color: var(--cyan);">tailscale.com/download</a> dan login menggunakan akun yang <strong>sama persis</strong>.
         </p>
-
-        <h4 style="color: var(--accent); margin-bottom: 6px;">3. Akses Langsung</h4>
+        <h4 style="color: var(--cyan); margin-bottom: 4px;">3. Hubungkan ke Server</h4>
         <p style="color: var(--text-muted);">
-          Setelah kedua perangkat terhubung, buka browser di laptop Anda dan akses:
-          <br><strong id="guide-ts-url" style="color: #34d399;">http://100.x.y.z:8080</strong>
+          Gunakan IP Tailscale HP Anda (dimulai dengan angka <code class="mono">100.x.y.z</code>) untuk mengakses Web Panel (<code class="mono">:8080</code>) dan SSH (<code class="mono">:2222</code>) dari mana saja di seluruh dunia.
         </p>
       </div>
     </div>
   </div>
 
   <script>
+    // --- State Management ---
     let currentTailscaleIp = null;
     let currentLocalIp = '127.0.0.1';
     let currentDir = '~';
-    let activeTerminalJobId = null;
+    let activeTermJobId = null;
+    let termHistory = [];
+    let termHistoryIndex = -1;
 
-    // --- Switch Tab ---
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      const target = document.getElementById('tab-' + tabId);
-      if (target) target.classList.add('active');
+    // Buffer Data untuk Sparklines (30 titik data, ringan < 10KB)
+    const MAX_POINTS = 30;
+    const historyCpu = new Array(MAX_POINTS).fill(0);
+    const historyMem = new Array(MAX_POINTS).fill(0);
+    const historyNetRx = new Array(MAX_POINTS).fill(0);
+    const historyNetTx = new Array(MAX_POINTS).fill(0);
+    const historyTemp = new Array(MAX_POINTS).fill(0);
 
-      const navs = document.querySelectorAll('.nav-item');
-      const tabs = ['dashboard', 'vps', 'terminal', 'files', 'pm2', 'settings'];
-      const idx = tabs.indexOf(tabId);
-      if (idx !== -1 && navs[idx]) navs[idx].classList.add('active');
-
-      if (tabId === 'files') loadFiles(currentDir);
-      if (tabId === 'vps') loadVps();
-      if (tabId === 'pm2') loadPm2();
+    // Toast Notification System (No Alert Popups)
+    function showToast(msg, type = 'info') {
+      const box = document.getElementById('toast-box');
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerHTML = `<span>${type === 'success' ? '✓' : 'ℹ'}</span> <span>${msg}</span>`;
+      box.appendChild(t);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateX(20px)';
+        t.style.transition = 'all 0.2s';
+        setTimeout(() => t.remove(), 200);
+      }, 3000);
     }
 
-    // --- Login Handler ---
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const u = document.getElementById('login-user').value;
-      const p = document.getElementById('login-pass').value;
-      const errEl = document.getElementById('login-error');
-      errEl.style.display = 'none';
+    function copyText(str, msg) {
+      if (!str) return showToast('Alamat belum tersedia', 'warn');
+      navigator.clipboard.writeText(str).then(() => showToast(msg || 'Disalin ke clipboard!', 'success'));
+    }
 
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: u, password: p })
-        });
-        const data = await res.json();
-        if (data.ok) {
-          document.getElementById('login-view').style.display = 'none';
-          initDashboard();
-        } else {
-          errEl.textContent = data.message || 'Login gagal';
-          errEl.style.display = 'block';
-        }
-      } catch (err) {
-        errEl.textContent = 'Koneksi error: ' + err.message;
-        errEl.style.display = 'block';
+    // Modal Helpers
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    // --- Ultra-Lightweight Pure Canvas Sparkline Renderer ---
+    function renderSparkline(canvasId, data, color, fillColor, maxVal = 100) {
+      const cvs = document.getElementById(canvasId);
+      if (!cvs) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = cvs.clientWidth;
+      const h = cvs.clientHeight;
+      if (cvs.width !== w * dpr || cvs.height !== h * dpr) {
+        cvs.width = w * dpr;
+        cvs.height = h * dpr;
       }
-    });
+      const ctx = cvs.getContext('2d');
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
 
-    async function checkAuthStatus() {
+      if (!data || data.length < 2) return;
+      const step = w / (data.length - 1);
+
+      ctx.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const val = Math.max(0, Math.min(maxVal, data[i]));
+        const y = h - (val / maxVal) * (h - 6) - 3;
+        const x = i * step;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      if (fillColor) {
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+      }
+    }
+
+    // Dual-line Net Sparkline
+    function renderDualSparkline(canvasId, data1, color1, data2, color2, maxVal) {
+      const cvs = document.getElementById(canvasId);
+      if (!cvs) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = cvs.clientWidth;
+      const h = cvs.clientHeight;
+      if (cvs.width !== w * dpr || cvs.height !== h * dpr) {
+        cvs.width = w * dpr;
+        cvs.height = h * dpr;
+      }
+      const ctx = cvs.getContext('2d');
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+
+      const step = w / (data1.length - 1);
+      const safeMax = Math.max(10, maxVal);
+
+      // Line 1 (Download - RX)
+      ctx.beginPath();
+      for (let i = 0; i < data1.length; i++) {
+        const y = h - (Math.min(safeMax, data1[i]) / safeMax) * (h - 6) - 3;
+        if (i === 0) ctx.moveTo(0, y);
+        else ctx.lineTo(i * step, y);
+      }
+      ctx.strokeStyle = color1;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      // Line 2 (Upload - TX)
+      ctx.beginPath();
+      for (let i = 0; i < data2.length; i++) {
+        const y = h - (Math.min(safeMax, data2[i]) / safeMax) * (h - 6) - 3;
+        if (i === 0) ctx.moveTo(0, y);
+        else ctx.lineTo(i * step, y);
+      }
+      ctx.strokeStyle = color2;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    }
+
+    // --- Switch Views ---
+    function switchView(viewId) {
+      document.querySelectorAll('.view-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+      const target = document.getElementById('view-' + viewId);
+      if (target) target.classList.add('active');
+
+      const tabs = ['dashboard', 'vps', 'terminal', 'files', 'pm2', 'settings'];
+      const btns = document.querySelectorAll('.nav-btn');
+      const idx = tabs.indexOf(viewId);
+      if (idx !== -1 && btns[idx]) btns[idx].classList.add('active');
+
+      if (viewId === 'files') browsePath(currentDir);
+      if (viewId === 'vps') fetchVpsData();
+      if (viewId === 'pm2') fetchPm2Data();
+    }
+
+    // --- Telemetry Polling ---
+    async function updateTelemetry() {
+      if (document.hidden) return; // Hemat baterai & CPU jika tab di-minimize
       try {
         const res = await fetch('/api/system/stats');
         if (res.status === 401) {
           document.getElementById('login-view').style.display = 'flex';
-        } else {
-          document.getElementById('login-view').style.display = 'none';
-          initDashboard();
+          return;
         }
-      } catch (e) {
-        document.getElementById('login-view').style.display = 'flex';
-      }
-    }
-
-    async function logout() {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      location.reload();
-    }
-
-    // --- Dashboard Stats Refresh ---
-    async function updateStats() {
-      try {
-        const res = await fetch('/api/system/stats');
-        if (res.status === 401) return;
         const data = await res.json();
         if (!data.ok) return;
 
-        // CPU
-        document.getElementById('stat-cpu-val').textContent = data.cpu.percent + '%';
-        document.getElementById('stat-cpu-bar').style.width = data.cpu.percent + '%';
-        document.getElementById('stat-cpu-cores').textContent = data.cpu.cores + ' Cores';
-        document.getElementById('stat-cpu-model').textContent = data.cpu.model;
+        // 1. CPU
+        const cpuPct = data.cpu.percent || 0;
+        document.getElementById('c-cpu-val').textContent = cpuPct + '%';
+        document.getElementById('c-cpu-cores').textContent = data.cpu.cores + ' Cores';
+        document.getElementById('c-cpu-model').textContent = data.cpu.model.split('@')[0].trim();
+        const load1 = data.cpu.loadAvg ? data.cpu.loadAvg[0] : 0;
+        document.getElementById('c-cpu-load').textContent = `Load: ${load1}`;
+        document.getElementById('hdr-load').textContent = data.cpu.loadAvg ? `${data.cpu.loadAvg[0]}, ${data.cpu.loadAvg[1]}` : '-';
 
-        // RAM
-        document.getElementById('stat-mem-val').textContent = `${data.memory.usedMB} / ${data.memory.totalMB} MB`;
-        document.getElementById('stat-mem-bar').style.width = data.memory.percent + '%';
-        document.getElementById('stat-mem-pct').textContent = data.memory.percent + '%';
-        document.getElementById('stat-mem-free').textContent = `Bebas: ${data.memory.freeMB} MB`;
+        historyCpu.push(cpuPct);
+        historyCpu.shift();
+        renderSparkline('chart-cpu', historyCpu, '#38bdf8', 'rgba(56, 189, 248, 0.15)');
 
-        // Disk
-        document.getElementById('stat-disk-val').textContent = `${data.disk.usedGB} / ${data.disk.totalGB} GB`;
-        document.getElementById('stat-disk-bar').style.width = data.disk.percent + '%';
-        document.getElementById('stat-disk-pct').textContent = data.disk.percent + '%';
-        document.getElementById('stat-disk-free').textContent = `Sisa: ${data.disk.freeGB} GB`;
+        // 2. Memory RAM
+        const memPct = data.memory.percent || 0;
+        document.getElementById('c-mem-val').textContent = `${data.memory.usedMB} / ${data.memory.totalMB} MB`;
+        document.getElementById('c-mem-pct').textContent = memPct + '%';
+        document.getElementById('c-mem-free').textContent = `Bebas: ${data.memory.freeMB} MB`;
+        document.getElementById('c-mem-total').textContent = `Total: ${data.memory.totalMB} MB`;
 
-        // Temp & Battery
-        document.getElementById('stat-temp-val').textContent = (data.thermal.primaryTemp || 0) + ' °C';
+        historyMem.push(memPct);
+        historyMem.shift();
+        renderSparkline('chart-mem', historyMem, '#10b981', 'rgba(16, 185, 129, 0.15)');
+
+        // 3. Network Speeds
+        const rx = data.netSpeed ? data.netSpeed.rxKbps : 0;
+        const tx = data.netSpeed ? data.netSpeed.txKbps : 0;
+        document.getElementById('hdr-net-rx').textContent = rx > 1024 ? (rx / 1024).toFixed(1) + ' MB/s' : rx + ' KB/s';
+        document.getElementById('hdr-net-tx').textContent = tx > 1024 ? (tx / 1024).toFixed(1) + ' MB/s' : tx + ' KB/s';
+        document.getElementById('c-net-val').textContent = rx > 1024 ? (rx / 1024).toFixed(1) + ' MB/s' : rx + ' KB/s';
+        document.getElementById('c-net-rx').textContent = rx + ' KB/s';
+        document.getElementById('c-net-tx').textContent = tx + ' KB/s';
+
+        historyNetRx.push(rx);
+        historyNetRx.shift();
+        historyNetTx.push(tx);
+        historyNetTx.shift();
+        const maxNet = Math.max(...historyNetRx, ...historyNetTx, 20);
+        renderDualSparkline('chart-net', historyNetRx, '#38bdf8', historyNetTx, '#818cf8', maxNet);
+
+        // 4. Thermal & Battery
+        const temp = data.thermal.primaryTemp || 0;
+        document.getElementById('c-temp-val').textContent = temp + ' °C';
         if (data.battery && data.battery.percentage !== null) {
-          document.getElementById('stat-bat-val').textContent = data.battery.percentage + '%';
-          document.getElementById('stat-bat-status').textContent = `Status: ${data.battery.status} (${data.battery.plugged})`;
+          document.getElementById('c-bat-val').textContent = data.battery.percentage + '%';
+          document.getElementById('c-bat-status').textContent = `Baterai: ${data.battery.status}`;
+          document.getElementById('c-bat-plug').textContent = `Power: ${data.battery.plugged}`;
         }
+        historyTemp.push(temp);
+        historyTemp.shift();
+        renderSparkline('chart-temp', historyTemp, '#f59e0b', 'rgba(245, 158, 11, 0.15)', 85);
 
-        // IPs
+        // 5. Disk
+        document.getElementById('c-disk-pct').textContent = data.disk.percent + '%';
+        document.getElementById('c-disk-detail').textContent = `${data.disk.usedGB} / ${data.disk.totalGB} GB`;
+        document.getElementById('c-disk-free').textContent = data.disk.freeGB + ' GB';
+        document.getElementById('c-disk-total').textContent = data.disk.totalGB + ' GB';
+        document.getElementById('c-disk-bar').style.width = data.disk.percent + '%';
+
+        // 6. Network & Tailscale
         currentLocalIp = data.network.primaryLocalIp || '127.0.0.1';
-        document.getElementById('info-local-ip').textContent = currentLocalIp;
-
         if (data.network.tailscale.connected) {
           currentTailscaleIp = data.network.tailscale.ip;
-          document.getElementById('ts-ip-text').innerHTML = `🟢 ${currentTailscaleIp}:8080`;
-          document.getElementById('info-ts-ip').textContent = currentTailscaleIp;
-          document.getElementById('hdr-ts-badge').className = 'badge badge-success';
-          document.getElementById('hdr-ts-badge').textContent = 'Tailscale Online';
-          document.getElementById('ssh-ts-cmd').textContent = `ssh root@${currentTailscaleIp} -p 2222`;
-          document.getElementById('guide-ts-url').textContent = `http://${currentTailscaleIp}:8080`;
+          document.getElementById('ts-ip-text').textContent = currentTailscaleIp;
+          document.getElementById('hdr-ts-label').textContent = 'Tailscale Online';
+          document.getElementById('hdr-ts-badge').className = 'badge badge-emerald';
+          document.getElementById('port-ts-ip').textContent = currentTailscaleIp;
+          document.getElementById('port-ts-status').innerHTML = '<span class="badge badge-emerald">ACTIVE</span>';
+          document.getElementById('vps-cmd-ts').textContent = `ssh root@${currentTailscaleIp} -p 2222`;
         } else {
           currentTailscaleIp = null;
-          document.getElementById('ts-ip-text').innerHTML = `⚠️ Belum Terhubung (Buka Tailscale di HP)`;
-          document.getElementById('info-ts-ip').textContent = 'Tidak Terdeteksi';
-          document.getElementById('hdr-ts-badge').className = 'badge badge-warning';
-          document.getElementById('hdr-ts-badge').textContent = 'Tailscale Offline';
-          document.getElementById('ssh-ts-cmd').textContent = `ssh root@<IP-Tailscale> -p 2222`;
+          document.getElementById('ts-ip-text').textContent = 'Buka Aplikasi Tailscale di HP';
+          document.getElementById('hdr-ts-label').textContent = 'Tailscale Offline';
+          document.getElementById('hdr-ts-badge').className = 'badge badge-amber';
+          document.getElementById('port-ts-ip').textContent = 'Not Connected';
+          document.getElementById('port-ts-status').innerHTML = '<span class="badge badge-amber">OFFLINE</span>';
+          document.getElementById('vps-cmd-ts').textContent = `ssh root@<Tailscale-IP> -p 2222`;
         }
-        document.getElementById('ssh-local-cmd').textContent = `ssh root@${currentLocalIp} -p 2222`;
+        document.getElementById('vps-cmd-lan').textContent = `ssh root@${currentLocalIp} -p 2222`;
 
-        // Uptime
+        // 7. VPS Status
+        if (data.vps.sshRunning) {
+          document.getElementById('port-vps-status').innerHTML = '<span class="badge badge-emerald">RUNNING</span>';
+          document.getElementById('vps-view-badge').className = 'badge badge-emerald';
+          document.getElementById('vps-view-badge').textContent = 'Aktif (Port 2222)';
+        } else {
+          document.getElementById('port-vps-status').innerHTML = '<span class="badge badge-rose">STOPPED</span>';
+          document.getElementById('vps-view-badge').className = 'badge badge-rose';
+          document.getElementById('vps-view-badge').textContent = 'Nonaktif';
+        }
+
+        // 8. Top Processes
+        renderTopProcesses(data.topProcesses);
+
+        // 9. Uptime
         const hrs = Math.floor(data.uptime / 3600);
         const mins = Math.floor((data.uptime % 3600) / 60);
-        document.getElementById('hdr-uptime').textContent = `Uptime: ${hrs}j ${mins}m`;
+        document.getElementById('hdr-uptime').textContent = `${hrs}h ${mins}m`;
+
       } catch (e) {}
     }
 
-    function initDashboard() {
-      updateStats();
-      setInterval(updateStats, 3000);
-    }
-
-    function copyTailscaleUrl() {
-      if (!currentTailscaleIp) {
-        alert('Tailscale belum terhubung pada HP Server ini. Silakan buka aplikasi Tailscale dan sambungkan VPN.');
+    function renderTopProcesses(procs) {
+      const tbody = document.getElementById('top-procs-body');
+      if (!procs || procs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color: var(--text-sub);">Tidak ada data proses</td></tr>';
         return;
       }
-      const url = `http://${currentTailscaleIp}:8080`;
-      navigator.clipboard.writeText(url).then(() => {
-        alert('Tautan Tailscale disalin: ' + url);
+      tbody.innerHTML = procs.map(p => `
+        <tr>
+          <td class="mono" style="color: var(--text-sub);">${p.pid}</td>
+          <td><strong style="color: #fff;">${p.name}</strong> <span style="font-size: 10px; color: var(--text-sub);">(${p.user})</span></td>
+          <td class="mono" style="color: var(--cyan);">${p.cpu}%</td>
+          <td class="mono" style="color: var(--emerald);">${p.mem}%</td>
+          <td style="text-align: right;">
+            <button class="btn btn-xs btn-danger" onclick="killPid(${p.pid})">Kill</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function killPid(pid) {
+      if (!confirm(`Hentikan proses PID ${pid}?`)) return;
+      const res = await fetch('/api/process/kill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pid })
       });
+      const data = await res.json();
+      showToast(data.message, data.ok ? 'success' : 'warn');
+      updateTelemetry();
     }
 
-    function openTailscaleHelp() {
-      document.getElementById('ts-help-modal').classList.add('active');
-    }
-
-    // --- Device Hardware Controls ---
-    async function sendDeviceAction(act) {
+    // Hardware Actions
+    async function sendAction(act) {
       try {
         const res = await fetch('/api/device/action', {
           method: 'POST',
@@ -841,60 +1226,51 @@
           body: JSON.stringify({ action: act })
         });
         const data = await res.json();
-        alert(data.message);
+        showToast(data.message, data.ok ? 'success' : 'warn');
       } catch (e) {
-        alert('Gagal: ' + e.message);
+        showToast('Error: ' + e.message, 'warn');
       }
     }
 
-    // --- VPS Controls ---
-    async function loadVps() {
-      const badge = document.getElementById('vps-badge-status');
-      badge.textContent = 'Memeriksa...';
-      badge.className = 'badge badge-warning';
-      try {
-        const res = await fetch('/api/vps/status');
-        const data = await res.json();
-        if (data.vps.sshRunning) {
-          badge.textContent = 'Aktif (Port 2222)';
-          badge.className = 'badge badge-success';
-        } else {
-          badge.textContent = 'Nonaktif';
-          badge.className = 'badge badge-danger';
-        }
-      } catch (e) {
-        badge.textContent = 'Error';
+    // VPS Controls
+    async function fetchVpsData() {
+      const res = await fetch('/api/vps/status');
+      const data = await res.json();
+      const badge = document.getElementById('vps-view-badge');
+      if (data.vps.sshRunning) {
+        badge.className = 'badge badge-emerald';
+        badge.textContent = 'Aktif (Port 2222)';
+      } else {
+        badge.className = 'badge badge-rose';
+        badge.textContent = 'Nonaktif';
       }
     }
 
-    async function vpsAction(action) {
-      if (!confirm(`Yakin ingin ${action} VPS?`)) return;
-      try {
-        const res = await fetch('/api/vps/' + action, { method: 'POST' });
-        const data = await res.json();
-        alert(data.message);
-        setTimeout(loadVps, 1500);
-      } catch (e) {
-        alert('Gagal: ' + e.message);
-      }
+    async function vpsCtrl(action) {
+      const res = await fetch('/api/vps/' + action, { method: 'POST' });
+      const data = await res.json();
+      showToast(data.message, data.ok ? 'success' : 'warn');
+      setTimeout(fetchVpsData, 1000);
     }
 
-    // --- Terminal Interactive Stream ---
-    async function sendTerminalCommand() {
-      const input = document.getElementById('term-input');
+    // Terminal
+    async function submitTermCmd() {
+      const input = document.getElementById('term-cmd-input');
       const cmd = input.value.trim();
       if (!cmd) return;
+      termHistory.push(cmd);
+      termHistoryIndex = termHistory.length;
       input.value = '';
 
-      const term = document.getElementById('term-output');
-      term.textContent += `\n$ ${cmd}\n`;
-      term.scrollTop = term.scrollHeight;
+      const scr = document.getElementById('term-display');
+      scr.textContent += `\n$ ${cmd}\n`;
+      scr.scrollTop = scr.scrollHeight;
 
       try {
         const res = await fetch('/api/terminal/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: cmd })
+          body: JSON.stringify({ command: cmd, cwd: currentDir })
         });
 
         const reader = res.body.getReader();
@@ -912,225 +1288,218 @@
             if (!line.trim()) continue;
             try {
               const msg = JSON.parse(line);
-              if (msg.type === 'init') {
-                activeTerminalJobId = msg.jobId;
-              } else if (msg.type === 'stdout' || msg.type === 'stderr') {
-                term.textContent += msg.data;
-                term.scrollTop = term.scrollHeight;
+              if (msg.type === 'init') activeTermJobId = msg.jobId;
+              else if (msg.type === 'stdout' || msg.type === 'stderr') {
+                scr.textContent += msg.data;
+                scr.scrollTop = scr.scrollHeight;
               } else if (msg.type === 'exit') {
-                activeTerminalJobId = null;
-                term.textContent += `\n[Selesai dengan kode: ${msg.code}]\n`;
-                term.scrollTop = term.scrollHeight;
+                activeTermJobId = null;
+                scr.textContent += `\n[Selesai dengan status ${msg.code}]\n`;
+                scr.scrollTop = scr.scrollHeight;
               }
             } catch (err) {}
           }
         }
       } catch (e) {
-        term.textContent += `\n[Error: ${e.message}]\n`;
+        scr.textContent += `\n[Error: ${e.message}]\n`;
       }
     }
 
-    function handleTerminalKey(e) {
-      if (e.key === 'Enter') sendTerminalCommand();
+    function onTermKey(e) {
+      if (e.key === 'Enter') submitTermCmd();
+      else if (e.key === 'ArrowUp') {
+        if (termHistory.length > 0 && termHistoryIndex > 0) {
+          termHistoryIndex--;
+          e.target.value = termHistory[termHistoryIndex];
+        }
+      } else if (e.key === 'ArrowDown') {
+        if (termHistoryIndex < termHistory.length - 1) {
+          termHistoryIndex++;
+          e.target.value = termHistory[termHistoryIndex];
+        } else {
+          termHistoryIndex = termHistory.length;
+          e.target.value = '';
+        }
+      }
     }
 
-    async function killTerminalJob() {
-      if (!activeTerminalJobId) return;
+    function runPreset(cmd) {
+      document.getElementById('term-cmd-input').value = cmd;
+      submitTermCmd();
+    }
+
+    async function killActiveTerminal() {
+      if (!activeTermJobId) return showToast('Tidak ada proses terminal aktif', 'warn');
       await fetch('/api/terminal/kill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: activeTerminalJobId })
+        body: JSON.stringify({ jobId: activeTermJobId })
       });
-      activeTerminalJobId = null;
+      activeTermJobId = null;
+      showToast('Perintah dihentikan (SIGINT)', 'info');
     }
 
-    function clearTerminal() {
-      document.getElementById('term-output').textContent = '';
+    function clearTermScreen() {
+      document.getElementById('term-display').textContent = '';
     }
 
-    // --- File Manager ---
-    async function loadFiles(dirPath) {
-      const tbody = document.getElementById('file-list-body');
+    // File Manager
+    async function browsePath(p) {
+      const tbody = document.getElementById('fm-tbody');
       tbody.innerHTML = '<tr><td colspan="4">Memuat berkas...</td></tr>';
-
       try {
-        const res = await fetch(`/api/files/list?path=${encodeURIComponent(dirPath)}`);
-        const result = await res.json();
-        if (!result.ok) throw new Error(result.message);
+        const res = await fetch('/api/files/list?path=' + encodeURIComponent(p));
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message);
 
-        currentDir = result.data.currentPath;
-        document.getElementById('fm-current-dir').textContent = currentDir;
+        currentDir = data.data.currentPath;
+        document.getElementById('fm-path-display').textContent = currentDir;
         tbody.innerHTML = '';
 
-        if (result.data.parentPath) {
+        if (data.data.parentPath) {
           const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td colspan="4" class="file-item-name" onclick="loadFiles('${result.data.parentPath.replace(/\\/g, '/')}')">
-              📁 <strong>.. (Kembali ke folder atas)</strong>
-            </td>
-          `;
+          tr.innerHTML = `<td colspan="4" style="cursor: pointer; color: var(--cyan);" onclick="browsePath('${data.data.parentPath.replace(/\\/g, '/')}')">📁 <strong>.. (Kembali ke folder atas)</strong></td>`;
           tbody.appendChild(tr);
         }
 
-        result.data.items.forEach(item => {
+        data.data.items.forEach(it => {
           const tr = document.createElement('tr');
-          const cleanPath = item.path.replace(/\\/g, '/');
-          const icon = item.isDir ? '📁' : '📄';
-          const sizeStr = item.isDir ? '-' : (item.size > 1024 * 1024 ? (item.size / 1024 / 1024).toFixed(1) + ' MB' : (item.size / 1024).toFixed(1) + ' KB');
-          const dateStr = item.mtime.substring(0, 10);
-
+          const clean = it.path.replace(/\\/g, '/');
+          const icon = it.isDir ? '📁' : '📄';
+          const size = it.isDir ? '-' : (it.size > 1024 * 1024 ? (it.size / 1024 / 1024).toFixed(1) + ' MB' : (it.size / 1024).toFixed(1) + ' KB');
           tr.innerHTML = `
             <td>
-              <div class="file-item-name" onclick="${item.isDir ? `loadFiles('${cleanPath}')` : `openEditor('${cleanPath}')`}">
-                ${icon} ${item.name}
-              </div>
+              <span style="cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 6px;" onclick="${it.isDir ? `browsePath('${clean}')` : `openFileInEditor('${clean}')`}">
+                ${icon} ${it.name}
+              </span>
             </td>
-            <td style="color: var(--text-muted); font-size: 12px;">${sizeStr}</td>
-            <td style="color: var(--text-muted); font-size: 12px;">${dateStr}</td>
+            <td class="mono" style="color: var(--text-sub);">${size}</td>
+            <td class="mono" style="color: var(--text-sub);">${it.mtime.substring(0, 10)}</td>
             <td style="text-align: right;">
-              <a href="/api/files/download?path=${encodeURIComponent(cleanPath)}" class="btn btn-sm" download>Unduh</a>
-              <button class="btn btn-sm btn-danger" onclick="deleteFile('${cleanPath}')">Hapus</button>
+              <a href="/api/files/download?path=${encodeURIComponent(clean)}" class="btn btn-xs" download>Unduh</a>
+              <button class="btn btn-xs btn-danger" onclick="deleteTargetFile('${clean}')">Hapus</button>
             </td>
           `;
           tbody.appendChild(tr);
         });
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="4" style="color: var(--danger);">Gagal memuat berkas: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="color: var(--rose);">Gagal: ${e.message}</td></tr>`;
       }
     }
 
-    let activeEditPath = null;
-    async function openEditor(filePath) {
-      activeEditPath = filePath;
-      document.getElementById('editor-filename').textContent = 'Edit: ' + filePath.split('/').pop();
+    let activeEditorFilePath = null;
+    async function openFileInEditor(filePath) {
+      activeEditorFilePath = filePath;
+      document.getElementById('editor-title').textContent = filePath.split('/').pop();
       try {
-        const res = await fetch(`/api/files/read?path=${encodeURIComponent(filePath)}`);
+        const res = await fetch('/api/files/read?path=' + encodeURIComponent(filePath));
         const data = await res.json();
         if (data.ok) {
-          document.getElementById('editor-content').value = data.content;
-          document.getElementById('editor-modal').classList.add('active');
-        } else {
-          alert('Gagal membuka file: ' + data.message);
-        }
-      } catch (e) {
-        alert('Gagal: ' + e.message);
-      }
+          document.getElementById('editor-textarea').value = data.content;
+          openModal('modal-editor');
+        } else showToast(data.message, 'warn');
+      } catch (e) { showToast(e.message, 'warn'); }
     }
 
-    function closeEditor() {
-      document.getElementById('editor-modal').classList.remove('active');
-      activeEditPath = null;
+    async function saveEditorContent() {
+      if (!activeEditorFilePath) return;
+      const content = document.getElementById('editor-textarea').value;
+      const res = await fetch('/api/files/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: activeEditorFilePath, content })
+      });
+      const data = await res.json();
+      showToast(data.message, data.ok ? 'success' : 'warn');
+      if (data.ok) closeModal('modal-editor');
     }
 
-    async function saveEditorFile() {
-      if (!activeEditPath) return;
-      const content = document.getElementById('editor-content').value;
-      try {
-        const res = await fetch('/api/files/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: activeEditPath, content })
-        });
-        const data = await res.json();
-        alert(data.message);
-        closeEditor();
-      } catch (e) {
-        alert('Gagal menyimpan: ' + e.message);
-      }
-    }
-
-    async function promptCreateFile() {
-      const name = prompt('Masukkan nama file baru:');
+    async function promptNewFile() {
+      const name = prompt('Nama berkas baru:');
       if (!name) return;
-      const fullPath = currentDir + '/' + name;
       await fetch('/api/files/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: fullPath, type: 'file' })
+        body: JSON.stringify({ path: currentDir + '/' + name, type: 'file' })
       });
-      loadFiles(currentDir);
+      browsePath(currentDir);
     }
 
-    async function promptCreateFolder() {
-      const name = prompt('Masukkan nama folder baru:');
+    async function promptNewFolder() {
+      const name = prompt('Nama folder baru:');
       if (!name) return;
-      const fullPath = currentDir + '/' + name;
       await fetch('/api/files/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: fullPath, type: 'folder' })
+        body: JSON.stringify({ path: currentDir + '/' + name, type: 'folder' })
       });
-      loadFiles(currentDir);
+      browsePath(currentDir);
     }
 
-    async function deleteFile(filePath) {
-      if (!confirm('Yakin ingin menghapus: ' + filePath + '?')) return;
+    async function deleteTargetFile(p) {
+      if (!confirm('Hapus berkas ini: ' + p + '?')) return;
       await fetch('/api/files/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: filePath })
+        body: JSON.stringify({ path: p })
       });
-      loadFiles(currentDir);
+      browsePath(currentDir);
     }
 
-    async function uploadFile(input) {
+    async function doUploadFile(input) {
       if (!input.files || input.files.length === 0) return;
-      const file = input.files[0];
-      const formData = new FormData();
-      formData.append('file', file);
-
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
       try {
-        const res = await fetch(`/api/files/upload?dir=${encodeURIComponent(currentDir)}`, {
-          method: 'POST',
-          body: formData
-        });
-        alert('File berhasil diunggah!');
+        await fetch('/api/files/upload?dir=' + encodeURIComponent(currentDir), { method: 'POST', body: fd });
+        showToast('Berkas berhasil diunggah', 'success');
         input.value = '';
-        loadFiles(currentDir);
-      } catch (e) {
-        alert('Upload gagal: ' + e.message);
-      }
+        browsePath(currentDir);
+      } catch (e) { showToast(e.message, 'warn'); }
     }
 
-    // --- PM2 ---
-    async function loadPm2() {
-      const box = document.getElementById('pm2-container');
-      box.innerHTML = 'Memuat proses...';
+    // PM2
+    async function fetchPm2Data() {
+      const box = document.getElementById('pm2-content');
+      box.textContent = 'Memuat proses PM2...';
       try {
         const res = await fetch('/api/pm2/status');
         const data = await res.json();
         if (!data.pm2Installed) {
-          box.innerHTML = `<p style="color: var(--text-muted);">${data.message}. Pasang PM2 dengan: <code>npm install -g pm2</code></p>`;
+          box.innerHTML = `<span style="color: var(--text-sub);">${data.message}. Pasang PM2 dengan: <code class="mono">npm install -g pm2</code></span>`;
           return;
         }
-        if (data.processes.length === 0) {
-          box.innerHTML = '<p style="color: var(--text-muted);">Tidak ada proses yang sedang berjalan di PM2.</p>';
+        if (!data.processes || data.processes.length === 0) {
+          box.innerHTML = '<span style="color: var(--text-sub);">Tidak ada proses yang berjalan di PM2.</span>';
           return;
         }
-        let html = '<table class="file-table"><thead><tr><th>ID</th><th>NAMA</th><th>STATUS</th><th>MEMORI</th><th>CPU</th></tr></thead><tbody>';
-        data.processes.forEach(p => {
-          html += `<tr>
-            <td>${p.pm_id}</td>
-            <td style="font-weight: 600;">${p.name}</td>
-            <td><span class="badge ${p.pm2_env.status === 'online' ? 'badge-success' : 'badge-danger'}">${p.pm2_env.status}</span></td>
-            <td>${Math.round((p.monit.memory || 0) / 1024 / 1024)} MB</td>
-            <td>${p.monit.cpu || 0}%</td>
-          </tr>`;
-        });
-        html += '</tbody></table>';
-        box.innerHTML = html;
+        box.innerHTML = `
+          <table class="data-table">
+            <thead><tr><th>ID</th><th>NAMA</th><th>STATUS</th><th>MEM</th><th>CPU</th></tr></thead>
+            <tbody>
+              ${data.processes.map(p => `
+                <tr>
+                  <td class="mono">${p.pm_id}</td>
+                  <td><strong>${p.name}</strong></td>
+                  <td><span class="badge ${p.pm2_env.status === 'online' ? 'badge-emerald' : 'badge-rose'}">${p.pm2_env.status}</span></td>
+                  <td class="mono">${Math.round((p.monit.memory || 0) / 1024 / 1024)} MB</td>
+                  <td class="mono">${p.monit.cpu || 0}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
       } catch (e) {
-        box.innerHTML = 'Gagal memuat PM2: ' + e.message;
+        box.textContent = 'Gagal memuat: ' + e.message;
       }
     }
 
-    // --- Settings Account ---
-    document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    // Settings
+    document.getElementById('settings-auth-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const currentPassword = document.getElementById('set-cur-pass').value;
       const newUsername = document.getElementById('set-new-user').value;
       const newPassword = document.getElementById('set-new-pass').value;
-
       try {
         const res = await fetch('/api/settings/account', {
           method: 'POST',
@@ -1138,17 +1507,39 @@
           body: JSON.stringify({ currentPassword, newUsername, newPassword })
         });
         const data = await res.json();
-        alert(data.message);
-        if (data.ok) {
-          document.getElementById('settings-form').reset();
-        }
-      } catch (e) {
-        alert('Gagal: ' + e.message);
+        showToast(data.message, data.ok ? 'success' : 'warn');
+        if (data.ok) document.getElementById('settings-auth-form').reset();
+      } catch (e) { showToast(e.message, 'warn'); }
+    });
+
+    // Login Form
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const u = document.getElementById('login-user').value;
+      const p = document.getElementById('login-pass').value;
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('login-view').style.display = 'none';
+        showToast('Selamat datang, ' + u, 'success');
+        updateTelemetry();
+      } else {
+        showToast(data.message, 'warn');
       }
     });
 
-    // Check login at start
-    checkAuthStatus();
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      location.reload();
+    }
+
+    // Initial check
+    updateTelemetry();
+    setInterval(updateTelemetry, 3000);
   </script>
 </body>
 </html>

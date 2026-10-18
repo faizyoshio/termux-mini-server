@@ -18,7 +18,6 @@ const net = require('net');
 const BASE_DIR = path.resolve(__dirname, '..');
 const LOG_DIR = path.join(BASE_DIR, 'logs');
 const AUTH_CONFIG_FILE = path.join(__dirname, 'auth-config.json');
-const STATE_FILE = path.join(__dirname, 'state.json');
 
 const PORT = parseInt(process.env.PANEL_PORT || process.env.PORT || '8080', 10);
 const TERMUX_HOME = process.env.HOME || '/data/data/com.termux/files/home';
@@ -121,7 +120,7 @@ function getNetworkInfo() {
     }
   }
 
-  // Jika belum terdeteksi dari interface os bawaan, coba command ip addr show (biasa di Android VPN service)
+  // Fallback: jalankan ip addr show
   if (!tailscaleIp) {
     try {
       const ipOutput = execSync('ip -4 addr show 2>/dev/null || ifconfig 2>/dev/null', { timeout: 1500 }).toString();
@@ -132,7 +131,7 @@ function getNetworkInfo() {
     } catch (e) {}
   }
 
-  // Coba cek tailscale status CLI jika terinstall
+  // Coba cek tailscale status CLI jika terpasang
   let tailscaleDeviceName = null;
   let tailscaleStatus = false;
   try {
@@ -148,7 +147,7 @@ function getNetworkInfo() {
   } catch (e) {}
 
   if (tailscaleIp && !tailscaleStatus) {
-    tailscaleStatus = true; // Jika IP 100.x ditemukan di interface VPN Android, Tailscale aktif
+    tailscaleStatus = true;
   }
 
   return {
@@ -157,7 +156,7 @@ function getNetworkInfo() {
     tailscale: {
       connected: !!tailscaleIp,
       ip: tailscaleIp || null,
-      deviceName: tailscaleDeviceName,
+      deviceName: tailscaleDeviceName || os.hostname(),
       status: tailscaleStatus ? 'Online' : 'Offline'
     }
   };
@@ -195,6 +194,46 @@ setInterval(() => {
   lastCpuSample = newSample;
 }, 2000);
 
+// Hitung Throughput Jaringan (RX / TX KB/s) via /proc/net/dev
+let lastNetSample = { rx: 0, tx: 0, time: Date.now() };
+let currentNetSpeed = { rxKbps: 0, txKbps: 0 };
+
+function readProcNetDev() {
+  let totalRx = 0;
+  let totalTx = 0;
+  try {
+    if (fs.existsSync('/proc/net/dev')) {
+      const data = fs.readFileSync('/proc/net/dev', 'utf8');
+      const lines = data.split('\n');
+      for (const line of lines) {
+        if (!line.includes(':')) continue;
+        const [iface, stats] = line.split(':');
+        const name = iface.trim();
+        if (name === 'lo') continue;
+        const cols = stats.trim().split(/\s+/);
+        if (cols.length >= 9) {
+          totalRx += parseInt(cols[0], 10) || 0;
+          totalTx += parseInt(cols[8], 10) || 0;
+        }
+      }
+    }
+  } catch (e) {}
+  return { rx: totalRx, tx: totalTx };
+}
+
+setInterval(() => {
+  const current = readProcNetDev();
+  const now = Date.now();
+  const dt = (now - lastNetSample.time) / 1000;
+  if (dt > 0 && lastNetSample.rx > 0) {
+    currentNetSpeed = {
+      rxKbps: Math.max(0, Math.round(((current.rx - lastNetSample.rx) / 1024 / dt) * 10) / 10),
+      txKbps: Math.max(0, Math.round(((current.tx - lastNetSample.tx) / 1024 / dt) * 10) / 10)
+    };
+  }
+  lastNetSample = { rx: current.rx, tx: current.tx, time: now };
+}, 2000);
+
 function getThermalInfo() {
   const temps = [];
   const thermalBase = '/sys/class/thermal';
@@ -206,7 +245,7 @@ function getThermalInfo() {
         const typePath = path.join(thermalBase, dir, 'type');
         if (fs.existsSync(tempPath)) {
           let raw = parseInt(fs.readFileSync(tempPath, 'utf8').trim(), 10);
-          if (raw > 1000) raw = Math.round(raw / 1000); // konversi millidegree ke Celsius
+          if (raw > 1000) raw = Math.round(raw / 1000); // millidegree ke Celsius
           let type = dir;
           if (fs.existsSync(typePath)) {
             type = fs.readFileSync(typePath, 'utf8').trim();
@@ -219,7 +258,6 @@ function getThermalInfo() {
     } catch (e) {}
   }
 
-  // Pilih suhu utama SoC / CPU
   let primaryTemp = null;
   const priorityTypes = ['soc_thermal', 'cpu', 'cpu-1', 'tsens_tz_sensor', 'mtktscpu', 'battery'];
   for (const prio of priorityTypes) {
@@ -237,7 +275,6 @@ function getThermalInfo() {
 }
 
 function getBatteryInfo() {
-  // Coba gunakan termux-battery-status jika tersedia
   try {
     const raw = execSync('termux-battery-status 2>/dev/null', { timeout: 1000 }).toString();
     const data = JSON.parse(raw);
@@ -250,7 +287,6 @@ function getBatteryInfo() {
     };
   } catch (e) {}
 
-  // Fallback membaca dari /sys/class/power_supply/battery/
   const pwrBase = '/sys/class/power_supply/battery';
   if (fs.existsSync(pwrBase)) {
     try {
@@ -295,6 +331,30 @@ function getDiskInfo() {
   return { totalGB: '0', usedGB: '0', freeGB: '0', percent: 0 };
 }
 
+function getTopProcesses() {
+  if (os.platform() === 'win32') return [];
+  try {
+    const out = execSync('ps -A -o pid,user,%cpu,%mem,comm 2>/dev/null | sort -k3 -nr 2>/dev/null | head -n 6', { timeout: 1000 }).toString();
+    const lines = out.trim().split('\n');
+    const procs = [];
+    for (let i = 0; i < lines.length; i++) {
+      const parts = lines[i].trim().split(/\s+/);
+      if (parts.length >= 5 && parts[0] !== 'PID') {
+        procs.push({
+          pid: parts[0],
+          user: parts[1],
+          cpu: parseFloat(parts[2]) || 0,
+          mem: parseFloat(parts[3]) || 0,
+          name: parts.slice(4).join(' ')
+        });
+      }
+    }
+    return procs;
+  } catch (e) {
+    return [];
+  }
+}
+
 function isPortActive(port) {
   return new Promise((resolve) => {
     const tester = net.createConnection({ port, host: '127.0.0.1' }, () => {
@@ -335,7 +395,6 @@ function startVpsService() {
       return { ok: false, message: 'Gagal menjalankan Ubuntu: ' + e.message };
     }
   } else {
-    // Coba via proot-distro langsung
     try {
       exec('proot-distro login ubuntu -- bash -c "service ssh start" >/dev/null 2>&1 &');
       return { ok: true, message: 'Memulai SSH via proot-distro ubuntu...' };
@@ -348,7 +407,6 @@ function startVpsService() {
 function stopVpsService() {
   try {
     execSync('pkill -f "sshd -D" 2>/dev/null || pkill -f "/usr/sbin/sshd" 2>/dev/null || true');
-    // Matikan juga di dalam proot jika memungkinkan
     try { execSync('proot-distro login ubuntu -- service ssh stop 2>/dev/null || true'); } catch (e) {}
     return { ok: true, message: 'Layanan OpenSSH VPS telah dihentikan.' };
   } catch (e) {
@@ -395,12 +453,9 @@ function listDirectory(targetPath) {
         mtime: s.mtime.toISOString(),
         permissions: (s.mode & 0o777).toString(8)
       });
-    } catch (e) {
-      // Lewati file yang tidak dapat dibaca izinnya
-    }
+    } catch (e) {}
   }
 
-  // Urutkan: folder di atas, lalu abjad
   items.sort((a, b) => {
     if (a.isDir && !b.isDir) return -1;
     if (!a.isDir && b.isDir) return 1;
@@ -415,7 +470,7 @@ function listDirectory(targetPath) {
 }
 
 // ------------------------------------------------------------------
-// TERMINAL STREAMING ENGINE (Ctrl+C and live execution)
+// TERMINAL STREAMING ENGINE
 // ------------------------------------------------------------------
 const activeJobs = new Map();
 
@@ -435,7 +490,7 @@ function parseJSONBody(req) {
     let body = '';
     req.on('data', chunk => {
       body += chunk;
-      if (body.length > 5 * 1024 * 1024) { // 5MB limit
+      if (body.length > 5 * 1024 * 1024) {
         reject(new Error('Payload terlalu besar'));
       }
     });
@@ -455,7 +510,7 @@ const server = http.createServer(async (req, res) => {
   const pathname = parsedUrl.pathname;
 
   // -------------------------
-  // PUBLIC ROUTES (No Auth)
+  // PUBLIC ROUTES
   // -------------------------
   if (pathname === '/api/auth/login' && req.method === 'POST') {
     try {
@@ -501,7 +556,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 1. System & Network Stats
+    // 1. Enhanced System & Telemetry Stats
     if (pathname === '/api/system/stats' && req.method === 'GET') {
       const memTotal = os.totalmem();
       const memFree = os.freemem();
@@ -512,13 +567,16 @@ const server = http.createServer(async (req, res) => {
       const thermal = getThermalInfo();
       const battery = getBatteryInfo();
       const disk = getDiskInfo();
+      const topProcs = getTopProcesses();
+      const vps = await getVpsStatus();
 
       sendJSON(res, 200, {
         ok: true,
         cpu: {
           percent: currentCpuPercent,
           cores: os.cpus().length,
-          model: os.cpus()[0]?.model || 'ARM Processor'
+          model: os.cpus()[0]?.model || 'ARM Cortex Processor',
+          loadAvg: os.loadavg().map(x => Math.round(x * 100) / 100)
         },
         memory: {
           totalMB: Math.round(memTotal / 1024 / 1024),
@@ -530,6 +588,9 @@ const server = http.createServer(async (req, res) => {
         thermal,
         battery,
         network: netInfo,
+        netSpeed: currentNetSpeed,
+        topProcesses: topProcs,
+        vps,
         uptime: os.uptime(),
         hostname: os.hostname(),
         platform: os.platform() + ' ' + os.arch()
@@ -760,7 +821,24 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 6. PM2 & Process Status
+    // 6. Kill Process Endpoint
+    if (pathname === '/api/process/kill' && req.method === 'POST') {
+      try {
+        const body = await parseJSONBody(req);
+        const pid = parseInt(body.pid, 10);
+        if (!pid || pid <= 1) {
+          sendJSON(res, 400, { ok: false, message: 'PID tidak valid atau dilindungi.' });
+          return;
+        }
+        process.kill(pid, 'SIGTERM');
+        sendJSON(res, 200, { ok: true, message: `Proses PID ${pid} berhasil dihentikan.` });
+      } catch (e) {
+        sendJSON(res, 500, { ok: false, message: 'Gagal menghentikan proses: ' + e.message });
+      }
+      return;
+    }
+
+    // 7. PM2 & Process Status
     if (pathname === '/api/pm2/status' && req.method === 'GET') {
       try {
         const out = execSync('pm2 jlist 2>/dev/null', { timeout: 2500 }).toString();
@@ -772,7 +850,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 7. Device Controls (Termux-API)
+    // 8. Device Controls (Termux-API)
     if (pathname === '/api/device/action' && req.method === 'POST') {
       try {
         const body = await parseJSONBody(req);
@@ -786,7 +864,7 @@ const server = http.createServer(async (req, res) => {
 
         if (cmd) {
           exec(cmd + ' 2>/dev/null');
-          sendJSON(res, 200, { ok: true, message: `Aksi ${action} dikirim.` });
+          sendJSON(res, 200, { ok: true, message: `Aksi ${action} berhasil dikirim.` });
         } else {
           sendJSON(res, 400, { ok: false, message: 'Aksi tidak dikenal.' });
         }
@@ -796,7 +874,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 8. Account Settings
+    // 9. Account Settings
     if (pathname === '/api/settings/account' && req.method === 'POST') {
       try {
         const body = await parseJSONBody(req);
