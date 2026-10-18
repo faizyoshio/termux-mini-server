@@ -73,7 +73,7 @@ dpkg --configure -a 2>/dev/null || true
 
 # Update repo dan install paket
 pkg update -y 2>/dev/null || apt-get update -y 2>/dev/null || true
-pkg install -y nodejs openssh curl wget git zip unzip tar proot proot-distro net-tools 2>/dev/null || true
+pkg install -y nodejs openssh curl wget git zip unzip tar proot proot-distro net-tools iproute2 2>/dev/null || true
 
 # Opsi termux-api
 pkg install -y termux-api 2>/dev/null || true

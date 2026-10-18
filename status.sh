@@ -17,6 +17,70 @@ is_port_active() {
     return 1
 }
 
+get_tailscale_ip() {
+    local ip=""
+    local conf_file="$HOME/termux-mini-server/panel/auth-config.json"
+
+    # 1. Manual override from panel config if set
+    if [ -f "$conf_file" ]; then
+        local override=$(grep -o '"tailscaleOverride": *"[^"]*"' "$conf_file" 2>/dev/null | cut -d'"' -f4)
+        if [ -n "$override" ]; then
+            echo "$override"
+            return 0
+        fi
+    fi
+
+    # 2. Probe kernel routing via Node.js UDP connect to Quad-100 (100.100.100.100:53)
+    if command -v node >/dev/null 2>&1; then
+        ip=$(node -e "const dgram = require('dgram'); const s = dgram.createSocket('udp4'); s.connect(53, '100.100.100.100', () => { const a = s.address().address; if (a && a.startsWith('100.') && a !== '100.100.100.100') console.log(a); s.close(); }); s.on('error', () => process.exit(0)); setTimeout(() => process.exit(0), 1000);" 2>/dev/null)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+    fi
+
+    # 3. Probe via ip route get 100.100.100.100
+    ip=$(ip route get 100.100.100.100 2>/dev/null || /system/bin/ip route get 100.100.100.100 2>/dev/null | grep -Eo "src 100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | awk '{print $2}' | head -n1)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    # 4. Probe via ip -4 addr show
+    ip=$(ip -4 addr show 2>/dev/null || /system/bin/ip -4 addr show 2>/dev/null | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    # 5. Probe via ifconfig -a
+    ip=$(ifconfig -a 2>/dev/null || /system/bin/ifconfig -a 2>/dev/null | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    # 6. Probe via /proc/net/fib_trie
+    if [ -r /proc/net/fib_trie ]; then
+        ip=$(grep -B1 "host LOCAL" /proc/net/fib_trie 2>/dev/null | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+    fi
+
+    # 7. Probe via Tailscale CLI if installed in Termux
+    if command -v tailscale >/dev/null 2>&1; then
+        ip=$(tailscale ip -4 2>/dev/null | head -n1)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 echo -e "${CYAN}=================================================================="
 echo -e " 📊 STATUS TERMUX MINI SERVER & UBUNTU VPS"
 echo -e "==================================================================${NC}"
@@ -35,19 +99,21 @@ else
     echo -e " • Ubuntu OpenSSH (Port 2222): ${RED}TIDAK AKTIF (OFFLINE)${NC}"
 fi
 
-# Alamat IP
-LOCAL_IP=$(ip -4 addr show 2>/dev/null | grep -E "inet (192\.168\.|10\.|172\.)" | awk '{print $2}' | cut -d'/' -f1 | head -n1)
+# Alamat IP Lokal Wi-Fi
+LOCAL_IP=$(ip -4 addr show 2>/dev/null || ifconfig 2>/dev/null | grep -Eo "inet (addr:)?(192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]+\.[0-9]+)" | grep -Eo "(192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]+\.[0-9]+)" | head -n1)
 LOCAL_IP="${LOCAL_IP:-127.0.0.1}"
 echo -e " • IP Wi-Fi Lokal            : ${CYAN}$LOCAL_IP${NC}"
 
 # Status Tailscale
-TS_IP=$(ip -4 addr show 2>/dev/null | grep -E "inet 100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\." | awk '{print $2}' | cut -d'/' -f1 | head -n1)
+TS_IP=$(get_tailscale_ip)
 if [ -n "$TS_IP" ]; then
     echo -e " • IP Tailscale (VPN)        : ${GREEN}$TS_IP (TERHUBUNG)${NC}"
     echo -e "   -> Akses Remote Web       : ${GREEN}http://$TS_IP:8080${NC}"
     echo -e "   -> Akses Remote SSH       : ${GREEN}ssh root@$TS_IP -p 2222${NC}"
 else
-    echo -e " • IP Tailscale (VPN)        : ${YELLOW}Belum Aktif (Buka aplikasi Tailscale di HP)${NC}"
+    echo -e " • IP Tailscale (VPN)        : ${YELLOW}Belum Terdeteksi${NC}"
+    echo -e "   -> Pastikan toggle 'Connected' di aplikasi Tailscale HP aktif."
+    echo -e "   -> Atau jalankan: ${CYAN}bash scripts/setup-tailscale.sh${NC}"
 fi
 
 echo -e "==================================================================${NC}"

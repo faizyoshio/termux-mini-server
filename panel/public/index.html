@@ -605,10 +605,14 @@
             <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
               <div class="ts-ip-badge" id="ts-badge-copy" onclick="copyText(currentTailscaleIp ? 'http://' + currentTailscaleIp + ':8080' : '', 'Tautan Web Tailscale disalin!')">
                 <span id="ts-ip-text">Memeriksa IP Tailscale...</span>
+                <span id="ts-override-badge" class="badge" style="display: none; background: rgba(129, 140, 248, 0.25); color: #c7d2fe; padding: 1px 6px; font-size: 10px;">Manual</span>
                 <span style="font-size: 11px; opacity: 0.7;">📋 Salin Web URL</span>
               </div>
               <button class="btn btn-sm" onclick="copyText(currentTailscaleIp ? 'ssh root@' + currentTailscaleIp + ' -p 2222' : '', 'Perintah SSH disalin!')">
                 📋 Salin SSH Command
+              </button>
+              <button class="btn btn-sm" onclick="promptTailscaleOverride()" title="Setel IP Tailscale secara manual jika otomatis belum terdeteksi">
+                ✏️ Set IP Manual
               </button>
             </div>
           </div>
@@ -1256,6 +1260,8 @@
           document.getElementById('port-ts-ip').textContent = currentTailscaleIp;
           document.getElementById('port-ts-status').innerHTML = '<span class="badge badge-emerald">ACTIVE</span>';
           document.getElementById('vps-cmd-ts').textContent = `ssh root@${currentTailscaleIp} -p 2222`;
+          const ovBadge = document.getElementById('ts-override-badge');
+          if (ovBadge) ovBadge.style.display = data.network.tailscale.isOverride ? 'inline-flex' : 'none';
         } else {
           currentTailscaleIp = null;
           document.getElementById('ts-ip-text').textContent = 'Buka Aplikasi Tailscale di HP';
@@ -1264,6 +1270,8 @@
           document.getElementById('port-ts-ip').textContent = 'Not Connected';
           document.getElementById('port-ts-status').innerHTML = '<span class="badge badge-amber">OFFLINE</span>';
           document.getElementById('vps-cmd-ts').textContent = `ssh root@<Tailscale-IP> -p 2222`;
+          const ovBadge = document.getElementById('ts-override-badge');
+          if (ovBadge) ovBadge.style.display = 'none';
         }
         document.getElementById('vps-cmd-lan').textContent = `ssh root@${currentLocalIp} -p 2222`;
 
@@ -1638,6 +1646,25 @@
     async function logout() {
       await fetch('/api/auth/logout', { method: 'POST' });
       location.reload();
+    }
+
+    // --- Tailscale Manual Override Helper ---
+    async function promptTailscaleOverride() {
+      const cur = currentTailscaleIp || '';
+      const input = prompt('Masukkan IP Tailscale HP Anda (contoh: 100.85.12.34) atau kosongkan untuk deteksi otomatis:', cur);
+      if (input === null) return;
+      try {
+        const res = await fetch('/api/tailscale/override', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: input.trim() })
+        });
+        const data = await res.json();
+        showToast(data.message, data.ok ? 'success' : 'warn');
+        updateTelemetry();
+      } catch (e) {
+        showToast('Error: ' + e.message, 'warn');
+      }
     }
 
     // --- Internet Ping Tool ---

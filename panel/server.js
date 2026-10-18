@@ -11,6 +11,7 @@ const os = require('os');
 const { spawn, exec, execSync } = require('child_process');
 const crypto = require('crypto');
 const net = require('net');
+const dgram = require('dgram');
 
 // ------------------------------------------------------------------
 // KONFIGURASI & PATHS
@@ -32,7 +33,7 @@ if (!fs.existsSync(LOG_DIR)) {
 // ------------------------------------------------------------------
 // AUTENTIKASI & SESI & BRUTE-FORCE RATE LIMITER
 // ------------------------------------------------------------------
-let authConfig = { username: 'admin', password: 'admin123' };
+let authConfig = { username: 'admin', password: 'admin123', tailscaleOverride: '' };
 
 function loadAuthConfig() {
   try {
@@ -40,6 +41,7 @@ function loadAuthConfig() {
       const data = JSON.parse(fs.readFileSync(AUTH_CONFIG_FILE, 'utf8'));
       if (data.username) authConfig.username = data.username.trim();
       if (data.password) authConfig.password = data.password.trim();
+      if (data.tailscaleOverride !== undefined) authConfig.tailscaleOverride = (data.tailscaleOverride || '').trim();
     }
   } catch (e) {
     console.error('Error loading auth-config.json:', e.message);
@@ -48,8 +50,8 @@ function loadAuthConfig() {
 loadAuthConfig();
 
 function saveAuthConfig(username, password) {
-  authConfig.username = username;
-  authConfig.password = password;
+  if (username) authConfig.username = username;
+  if (password) authConfig.password = password;
   try {
     fs.writeFileSync(AUTH_CONFIG_FILE, JSON.stringify(authConfig, null, 2), 'utf8');
     return true;
@@ -98,43 +100,148 @@ function checkAuth(req) {
 }
 
 // ------------------------------------------------------------------
-// DETEKSI JARINGAN & TAILSCALE IP
+// DETEKSI JARINGAN & TAILSCALE IP (MULTI-TIER ENGINE)
 // ------------------------------------------------------------------
+let cachedKernelTailscaleIp = null;
+
+// Probe kernel routing via UDP connect to Tailscale Quad-100 (100.100.100.100:53)
+// Bypasses all Android SELinux & non-root UID sandboxes with zero external traffic
+function probeTailscaleKernel() {
+  return new Promise((resolve) => {
+    try {
+      const s = dgram.createSocket('udp4');
+      s.connect(53, '100.100.100.100', () => {
+        try {
+          const addr = s.address();
+          s.close();
+          if (addr && addr.address && addr.address.startsWith('100.')) {
+            const parts = addr.address.split('.').map(Number);
+            if (parts[1] >= 64 && parts[1] <= 127 && addr.address !== '100.100.100.100') {
+              cachedKernelTailscaleIp = addr.address;
+              resolve(addr.address);
+              return;
+            }
+          }
+          cachedKernelTailscaleIp = null;
+          resolve(null);
+        } catch (e) {
+          cachedKernelTailscaleIp = null;
+          resolve(null);
+        }
+      });
+      s.on('error', () => {
+        try { s.close(); } catch (e) {}
+        cachedKernelTailscaleIp = null;
+        resolve(null);
+      });
+      setTimeout(() => {
+        try { s.close(); } catch (e) {}
+        resolve(cachedKernelTailscaleIp);
+      }, 1000);
+    } catch (e) {
+      cachedKernelTailscaleIp = null;
+      resolve(null);
+    }
+  });
+}
+
+// Background kernel routing probe every 3 seconds
+probeTailscaleKernel();
+setInterval(probeTailscaleKernel, 3000);
+
 function getNetworkInfo() {
   const interfaces = os.networkInterfaces();
   const localIps = [];
   let tailscaleIp = null;
 
+  // 1. Manual user override from auth-config.json
+  if (authConfig.tailscaleOverride && authConfig.tailscaleOverride.trim()) {
+    tailscaleIp = authConfig.tailscaleOverride.trim();
+  }
+
+  // 2. Kernel UDP Routing Lookup to Quad-100 (Most reliable on Android)
+  if (!tailscaleIp && cachedKernelTailscaleIp) {
+    tailscaleIp = cachedKernelTailscaleIp;
+  }
+
+  // 3. Inspect Node os.networkInterfaces()
   for (const name of Object.keys(interfaces)) {
     for (const netIf of interfaces[name]) {
       if (netIf.family === 'IPv4' && !netIf.internal) {
         const parts = netIf.address.split('.').map(Number);
-        const isTailscaleCgnat = parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127;
-        const isTailscaleName = name.toLowerCase().includes('tailscale') || name.toLowerCase().includes('tun');
+        const isTailscaleCgnat = parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127 && netIf.address !== '100.100.100.100';
+        const isTailscaleName = name.toLowerCase().includes('tailscale') || name.toLowerCase().includes('tun') || name.toLowerCase().includes('vpn');
 
-        if (isTailscaleCgnat || (isTailscaleName && parts[0] === 100)) {
+        if (!tailscaleIp && (isTailscaleCgnat || (isTailscaleName && parts[0] === 100))) {
           tailscaleIp = netIf.address;
-        } else {
+        } else if (!isTailscaleCgnat && !isTailscaleName) {
           localIps.push({ iface: name, address: netIf.address });
         }
       }
     }
   }
 
+  const execEnv = {
+    ...process.env,
+    PATH: '/data/data/com.termux/files/usr/bin:/data/data/com.termux/files/usr/bin/applets:/system/bin:/system/xbin:' + (process.env.PATH || '')
+  };
+
+  // 4. Fallback: ip route get 100.100.100.100
   if (!tailscaleIp) {
     try {
-      const ipOutput = execSync('ip -4 addr show 2>/dev/null || ifconfig 2>/dev/null', { timeout: 1500 }).toString();
-      const match = ipOutput.match(/inet\s+(100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.\d+\.\d+)/);
-      if (match && match[1]) {
-        tailscaleIp = match[1];
+      const out = execSync('ip route get 100.100.100.100 2>/dev/null || /system/bin/ip route get 100.100.100.100 2>/dev/null', {
+        timeout: 1000,
+        env: execEnv
+      }).toString();
+      const m = out.match(/src\s+(100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.\d+\.\d+)/);
+      if (m && m[1] && m[1] !== '100.100.100.100') {
+        tailscaleIp = m[1];
       }
     } catch (e) {}
   }
 
+  // 5. Fallback: Match any 100.64.0.0/10 address in ip addr show or ifconfig
+  if (!tailscaleIp) {
+    try {
+      const out = execSync('ip -4 addr show 2>/dev/null || /system/bin/ip -4 addr show 2>/dev/null || ifconfig -a 2>/dev/null', {
+        timeout: 1200,
+        env: execEnv
+      }).toString();
+      const matches = out.match(/100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.\d+\.\d+/g);
+      if (matches) {
+        for (const candidate of matches) {
+          if (candidate !== '100.100.100.100') {
+            tailscaleIp = candidate;
+            break;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 6. Fallback: Parse /proc/net/fib_trie (Kernel routing table)
+  if (!tailscaleIp && fs.existsSync('/proc/net/fib_trie')) {
+    try {
+      const trie = fs.readFileSync('/proc/net/fib_trie', 'utf8');
+      const lines = trie.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('host LOCAL') && i > 0) {
+          const prev = lines[i - 1];
+          const m = prev.match(/100\.(?:6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.\d+\.\d+/);
+          if (m && m[0] !== '100.100.100.100') {
+            tailscaleIp = m[0];
+            break;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 7. Fallback: Tailscale CLI status if installed in Termux
   let tailscaleDeviceName = null;
-  let tailscaleStatus = false;
+  let tailscaleStatus = !!tailscaleIp;
   try {
-    const tsOut = execSync('tailscale status --json 2>/dev/null', { timeout: 1500 }).toString();
+    const tsOut = execSync('tailscale status --json 2>/dev/null', { timeout: 1200, env: execEnv }).toString();
     const tsData = JSON.parse(tsOut);
     if (tsData && tsData.Self) {
       tailscaleStatus = tsData.BackendState === 'Running';
@@ -156,7 +263,8 @@ function getNetworkInfo() {
       connected: !!tailscaleIp,
       ip: tailscaleIp || null,
       deviceName: tailscaleDeviceName || os.hostname(),
-      status: tailscaleStatus ? 'Online' : 'Offline'
+      status: tailscaleStatus ? 'Online' : 'Offline',
+      isOverride: !!(authConfig.tailscaleOverride && authConfig.tailscaleOverride.trim())
     }
   };
 }
@@ -647,6 +755,24 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/tailscale/status' && req.method === 'GET') {
       const netInfo = getNetworkInfo();
       sendJSON(res, 200, { ok: true, tailscale: netInfo.tailscale, primaryLocalIp: netInfo.primaryLocalIp });
+      return;
+    }
+
+    if (pathname === '/api/tailscale/override' && req.method === 'POST') {
+      try {
+        const body = await parseJSONBody(req);
+        const newIp = (body.ip || '').trim();
+        authConfig.tailscaleOverride = newIp;
+        saveAuthConfig(authConfig.username, authConfig.password);
+        await probeTailscaleKernel();
+        sendJSON(res, 200, {
+          ok: true,
+          message: newIp ? `IP Tailscale disetel manual ke: ${newIp}` : 'IP Tailscale dikembalikan ke deteksi otomatis.',
+          tailscale: getNetworkInfo().tailscale
+        });
+      } catch (e) {
+        sendJSON(res, 500, { ok: false, message: e.message });
+      }
       return;
     }
 
