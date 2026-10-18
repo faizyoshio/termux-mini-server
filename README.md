@@ -56,6 +56,18 @@ Unlike legacy community scripts that often break due to unmaintained binary tunn
 
 ---
 
+## 📸 Interface Preview (UI/UX)
+
+| 🖥️ Desktop Dashboard (Live Telemetry & Tailscale) | 📱 Mobile View (Responsive Layout) |
+| :---: | :---: |
+| <img src="screenshots/dashboard_desktop.png" alt="Desktop Dashboard View" width="100%" /> | <img src="screenshots/dashboard_mobile.png" alt="Mobile Dashboard View" width="280px" /> |
+
+| 💻 Web Bash Console & Terminal | 📁 Web File Explorer & Text Editor |
+| :---: | :---: |
+| <img src="screenshots/terminal_desktop.png" alt="Web Terminal View" width="100%" /> | <img src="screenshots/files_desktop.png" alt="Web File Explorer View" width="100%" /> |
+
+---
+
 ## 🛠️ System Requirements
 
 | Specification | Minimum | Recommended |

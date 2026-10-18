@@ -56,6 +56,18 @@ Berbeda dengan skrip komunitas lama yang sering rusak akibat tunnel biner yang t
 
 ---
 
+## 📸 Tampilan Antarmuka (UI/UX Preview)
+
+| 🖥️ Tampilan Dashboard Desktop (Telemetri & Tailscale) | 📱 Tampilan Mobile HP (Layout Responsif) |
+| :---: | :---: |
+| <img src="screenshots/dashboard_desktop.png" alt="Tampilan Dashboard Desktop" width="100%" /> | <img src="screenshots/dashboard_mobile.png" alt="Tampilan Dashboard Mobile" width="280px" /> |
+
+| 💻 Web Bash Console & Terminal | 📁 Web File Explorer & Text Editor |
+| :---: | :---: |
+| <img src="screenshots/terminal_desktop.png" alt="Tampilan Web Terminal" width="100%" /> | <img src="screenshots/files_desktop.png" alt="Tampilan File Manager" width="100%" /> |
+
+---
+
 ## 🛠️ Spesifikasi & Persyaratan Sistem
 
 | Komponen | Spesifikasi Minimal | Rekomendasi Ideal |
