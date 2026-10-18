@@ -62,7 +62,7 @@ chmod +x *.sh scripts/*.sh 2>/dev/null || true
 # 4. Pastikan symlinks CLI di $PREFIX/bin up-to-date
 PREFIX_BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 if [ -d "$PREFIX_BIN" ]; then
-    for cmd in tms-server:start.sh tms-stop:stop.sh tms-status:status.sh tms-update:update.sh tms-fix:scripts/fix-server.sh tms-app:scripts/app-manager.sh tms-backup:scripts/backup.sh tms-restore:scripts/restore.sh ubuntu:scripts/start-ubuntu.sh; do
+    for cmd in tms-server:start.sh tms-start:start.sh tms-stop:stop.sh tms-restart:scripts/restart.sh tms-status:status.sh tms-update:update.sh tms-fix:scripts/fix-server.sh tms-app:scripts/app-manager.sh tms-backup:scripts/backup.sh tms-restore:scripts/restore.sh ubuntu:scripts/start-ubuntu.sh; do
         cname="${cmd%%:*}"
         ctarget="${cmd##*:}"
         cat << EOF > "$PREFIX_BIN/$cname"

@@ -43,7 +43,7 @@ PREFIX_BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 chmod +x *.sh scripts/*.sh 2>/dev/null || true
 
 if [ -d "$PREFIX_BIN" ]; then
-    for cmd in tms-server:start.sh tms-stop:stop.sh tms-status:status.sh tms-update:update.sh tms-fix:scripts/fix-server.sh tms-app:scripts/app-manager.sh tms-backup:scripts/backup.sh tms-restore:scripts/restore.sh ubuntu:scripts/start-ubuntu.sh; do
+    for cmd in tms-server:start.sh tms-start:start.sh tms-stop:stop.sh tms-restart:scripts/restart.sh tms-status:status.sh tms-update:update.sh tms-fix:scripts/fix-server.sh tms-app:scripts/app-manager.sh tms-backup:scripts/backup.sh tms-restore:scripts/restore.sh ubuntu:scripts/start-ubuntu.sh; do
         cname="${cmd%%:*}"
         ctarget="${cmd##*:}"
         cat << EOF > "$PREFIX_BIN/$cname"
@@ -53,7 +53,7 @@ EOF
         chmod +x "$PREFIX_BIN/$cname"
     done
     hash -r 2>/dev/null || true
-    echo -e "${GREEN}✓ Seluruh perintah CLI (tms-server, tms-fix, tms-update, dll) siap.${NC}"
+    echo -e "${GREEN}✓ Seluruh perintah CLI (tms-start, tms-stop, tms-fix, tms-update, dll) siap.${NC}"
 fi
 
 # 5. Konfigurasi Autostart Termux:Boot

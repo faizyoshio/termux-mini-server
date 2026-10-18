@@ -113,7 +113,7 @@ bash install.sh
 1. Meminta izin penyimpanan internal Android (`termux-setup-storage`) dan mengaktifkan CPU Wake-Lock (`termux-wake-lock`).
 2. Memasang seluruh dependensi sistem: `nodejs`, `openssh`, `proot`, `proot-distro`, `curl`, `wget`, `zip`, `unzip`, `tar`, `net-tools`.
 3. Mengunduh dan memasang distro Ubuntu resmi melalui `proot-distro` serta menyetel konfigurasi OpenSSH di port `2222`.
-4. Membuat pintasan perintah terminal global (`tms-server`, `tms-stop`, `tms-status`, `tms-fix`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
+4. Membuat pintasan perintah terminal global (`tms-start`, `tms-server`, `tms-stop`, `tms-restart`, `tms-status`, `tms-fix`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
 5. Membersihkan sisa *cache* instalasi dan langsung menyalakan server secara otomatis.
 
 ---
@@ -196,10 +196,11 @@ Setelah instalasi selesai, Anda dapat menjalankan perintah singkat ini langsung 
 
 | Perintah | Deskripsi Fungsi |
 | :--- | :--- |
-| `tms-server` | Menjalankan Web Dashboard (port 8080) dan Ubuntu VPS SSH (port 2222). |
+| `tms-start` / `tms-server` | Menjalankan Web Dashboard (port 8080) dan Ubuntu VPS SSH (port 2222). |
+| `tms-stop` | Menghentikan seluruh proses server dan Ubuntu VPS secara aman. |
+| `tms-restart` | Memuat ulang (*restart*) Web Dashboard dan layanan Ubuntu VPS. |
 | `tms-status` | Memeriksa status port, menampilkan IP Wi-Fi lokal dan IP Tailscale aktif. |
 | `tms-fix` | **Auto-Repair & Stabilizer 24/7**: Mengunci CPU wake-lock, mengatasi phantom killer, & restart server otomatis. |
-| `tms-stop` | Menghentikan seluruh proses server dan Ubuntu VPS secara aman. |
 | `tms-update` | Memperbarui kode repositori ke versi terbaru dari GitHub tanpa menghapus data. |
 | `tms-app` | Manajemen App Store (`tms-app [adguard|mariadb|postgresql|caddy|syncthing|aria2] [install|start|stop|status]`). |
 | `tms-backup` | Membuat arsip cadangan sistem `.tar.gz` (konfigurasi, database, dan data panel). |

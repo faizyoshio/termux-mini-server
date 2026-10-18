@@ -146,68 +146,16 @@ chmod +x "$BASE_DIR"/*.sh "$BASE_DIR/scripts"/*.sh 2>/dev/null || true
 
 PREFIX_BIN="$PREFIX/bin"
 if [ -d "$PREFIX_BIN" ]; then
-    # tms-server: Menjalankan server
-    cat << EOF > "$PREFIX_BIN/tms-server"
+    for cmd in tms-server:start.sh tms-start:start.sh tms-stop:stop.sh tms-restart:scripts/restart.sh tms-status:status.sh tms-update:update.sh tms-fix:scripts/fix-server.sh tms-app:scripts/app-manager.sh tms-backup:scripts/backup.sh tms-restore:scripts/restore.sh ubuntu:scripts/start-ubuntu.sh; do
+        cname="${cmd%%:*}"
+        ctarget="${cmd##*:}"
+        cat << EOF > "$PREFIX_BIN/$cname"
 #!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/start.sh" "\$@"
+bash "$BASE_DIR/$ctarget" "\$@"
 EOF
-    chmod +x "$PREFIX_BIN/tms-server"
-
-    # tms-stop: Mematikan server
-    cat << EOF > "$PREFIX_BIN/tms-stop"
-#!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/stop.sh" "\$@"
-EOF
-    chmod +x "$PREFIX_BIN/tms-stop"
-
-    # tms-status: Cek status server & Tailscale
-    cat << EOF > "$PREFIX_BIN/tms-status"
-#!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/status.sh" "\$@"
-EOF
-    chmod +x "$PREFIX_BIN/tms-status"
-
-    # ubuntu: Masuk langsung ke terminal Ubuntu root
-    cat << EOF > "$PREFIX_BIN/ubuntu"
-#!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/scripts/start-ubuntu.sh" "\$@"
-EOF
-    chmod +x "$PREFIX_BIN/ubuntu"
-
-    # tms-app: 1-Click App Store manager
-    cat << EOF > "$PREFIX_BIN/tms-app"
-#!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/scripts/app-manager.sh" "\$@"
-EOF
-    chmod +x "$PREFIX_BIN/tms-app"
-
-    # tms-backup: Backup konfigurasi dan data
-    cat << EOF > "$PREFIX_BIN/tms-backup"
-#!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/scripts/backup.sh" "\$@"
-EOF
-    chmod +x "$PREFIX_BIN/tms-backup"
-
-    # tms-restore: Restore konfigurasi dari backup
-    cat << EOF > "$PREFIX_BIN/tms-restore"
-#!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/scripts/restore.sh" "\$@"
-EOF
-    chmod +x "$PREFIX_BIN/tms-restore"
-
-    # tms-update: Update server tanpa install ulang
-    cat << EOF > "$PREFIX_BIN/tms-update"
-#!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/update.sh" "\$@"
-EOF
-    chmod +x "$PREFIX_BIN/tms-update"
-
-    # tms-fix: Perbaikan otomatis server 24/7 & anti-sleep
-    cat << EOF > "$PREFIX_BIN/tms-fix"
-#!/data/data/com.termux/files/usr/bin/bash
-bash "$BASE_DIR/scripts/fix-server.sh" "\$@"
-EOF
-    chmod +x "$PREFIX_BIN/tms-fix"
+        chmod +x "$PREFIX_BIN/$cname"
+    done
+    hash -r 2>/dev/null || true
 fi
 
 # Setup Autostart Termux:Boot jika aplikasi terpasang
@@ -239,10 +187,12 @@ echo -e " • Ubuntu VPS (SSH) : Port 2222 (User: root / Pass: ubuntu123)"
 echo -e " • Akses Jarak Jauh : Mendukung Tailscale Otomatis"
 echo -e ""
 echo -e " 📌 Perintah Cepat di Termux:"
-echo -e "   - Jalankan server : ${CYAN}tms-server${NC}"
+echo -e "   - Jalankan server : ${CYAN}tms-start${NC} (atau ${CYAN}tms-server${NC})"
 echo -e "   - Hentikan server : ${CYAN}tms-stop${NC}"
+echo -e "   - Restart server  : ${CYAN}tms-restart${NC}"
 echo -e "   - Cek status/IP   : ${CYAN}tms-status${NC}"
 echo -e "   - Update server   : ${CYAN}tms-update${NC}"
+echo -e "   - Auto-repair     : ${CYAN}tms-fix${NC}"
 echo -e "   - Masuk ke Ubuntu : ${CYAN}ubuntu${NC}"
 echo -e "${GREEN}└─────────────────────────────────────────────────────────────┘${NC}"
 echo ""

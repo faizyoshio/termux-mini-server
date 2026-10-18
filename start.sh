@@ -22,6 +22,21 @@ export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PREFIX/bin/applets
 # Kunci CPU smartphone agar tidak mati saat layar padam (24/7 Always-On)
 termux-wake-lock 2>/dev/null || true
 
+# Pastikan seluruh perintah cepat CLI (tms-start, tms-stop, dll) terdaftar di $PREFIX/bin
+PREFIX_BIN="$PREFIX/bin"
+if [ -d "$PREFIX_BIN" ] && [ ! -f "$PREFIX_BIN/tms-start" ]; then
+    for cmd in tms-server:start.sh tms-start:start.sh tms-stop:stop.sh tms-restart:scripts/restart.sh tms-status:status.sh tms-update:update.sh tms-fix:scripts/fix-server.sh tms-app:scripts/app-manager.sh tms-backup:scripts/backup.sh tms-restore:scripts/restore.sh ubuntu:scripts/start-ubuntu.sh; do
+        cname="${cmd%%:*}"
+        ctarget="${cmd##*:}"
+        cat << EOF > "$PREFIX_BIN/$cname"
+#!/data/data/com.termux/files/usr/bin/bash
+bash "$DIR/$ctarget" "\$@"
+EOF
+        chmod +x "$PREFIX_BIN/$cname" 2>/dev/null || true
+    done
+    hash -r 2>/dev/null || true
+fi
+
 is_port_active() {
     local port="$1"
 
@@ -191,5 +206,5 @@ echo -e "🔑 ${YELLOW}Kredensial Default:${NC}"
 echo -e "   • Web Panel : Username: ${CYAN}admin${NC} | Password: ${CYAN}admin123${NC}"
 echo -e "   • Ubuntu SSH: User: ${CYAN}root${NC} atau ${CYAN}ubuntu${NC} | Password: ${CYAN}ubuntu123${NC}"
 echo -e "=================================================================="
-echo -e "💡 Gunakan ${CYAN}tms-status${NC} untuk cek info, dan ${CYAN}tms-stop${NC} untuk mematikan."
+echo -e "💡 Gunakan ${CYAN}tms-start${NC} / ${CYAN}tms-stop${NC} untuk kontrol server, dan ${CYAN}tms-status${NC} untuk cek info."
 echo ""

@@ -113,7 +113,7 @@ bash install.sh
 1. Acquires Android storage permissions (`termux-setup-storage`) and enables CPU Wake-Lock (`termux-wake-lock`).
 2. Installs essential host packages: `nodejs`, `openssh`, `proot`, `proot-distro`, `curl`, `wget`, `zip`, `unzip`, `tar`, `net-tools`.
 3. Sets up the official Ubuntu rootfs via `proot-distro` and configures OpenSSH on port `2222`.
-4. Installs global CLI helper shortcuts (`tms-server`, `tms-stop`, `tms-status`, `tms-fix`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
+4. Installs global CLI helper shortcuts (`tms-start`, `tms-server`, `tms-stop`, `tms-restart`, `tms-status`, `tms-fix`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
 5. Cleans up package caches and automatically launches the server.
 
 ---
@@ -219,10 +219,11 @@ Once installed, you can execute these commands from anywhere in your Termux term
 
 | Command | Action |
 | :--- | :--- |
-| `tms-server` | Launches both the Web Dashboard (port 8080) and Ubuntu VPS SSH (port 2222). |
+| `tms-start` / `tms-server` | Launches both the Web Dashboard (port 8080) and Ubuntu VPS SSH (port 2222). |
+| `tms-stop` | Safely terminates all panel and VPS processes. |
+| `tms-restart` | Gracefully restarts the Web Dashboard and VPS services. |
 | `tms-status` | Displays live service status, active ports, Local Wi-Fi IP, and Tailscale IP. |
 | `tms-fix` | **24/7 Anti-Kill & Auto-Repair**: Acquires wake-lock, mitigates phantom killer, and restarts dead services. |
-| `tms-stop` | Safely terminates all panel and VPS processes. |
 | `tms-update` | Updates the server codebase to latest GitHub version without losing data. |
 | `tms-app` | Manage 1-Click Apps (`tms-app [adguard|mariadb|postgresql|caddy|syncthing|aria2] [install|start|stop|status]`). |
 | `tms-backup` | Generates a timestamped `.tar.gz` archive of configurations, databases, and panel data. |
