@@ -20,6 +20,7 @@ const LOG_DIR = path.join(BASE_DIR, 'logs');
 const AUTH_CONFIG_FILE = path.join(__dirname, 'auth-config.json');
 
 const PORT = parseInt(process.env.PANEL_PORT || process.env.PORT || '8080', 10);
+const PREFIX = process.env.PREFIX || '/data/data/com.termux/files/usr';
 const TERMUX_HOME = process.env.HOME || '/data/data/com.termux/files/home';
 const DEFAULT_ROOT_DIR = fs.existsSync(TERMUX_HOME) ? TERMUX_HOME : BASE_DIR;
 
@@ -29,7 +30,7 @@ if (!fs.existsSync(LOG_DIR)) {
 }
 
 // ------------------------------------------------------------------
-// AUTENTIKASI & SESI
+// AUTENTIKASI & SESI & BRUTE-FORCE RATE LIMITER
 // ------------------------------------------------------------------
 let authConfig = { username: 'admin', password: 'admin123' };
 
@@ -59,6 +60,7 @@ function saveAuthConfig(username, password) {
 }
 
 const activeSessions = new Map(); // token -> { user, expiresAt, ip }
+const loginAttempts = new Map();  // ip -> { count, lockedUntil }
 
 function createSession(user, ip) {
   const token = crypto.randomBytes(24).toString('hex');
@@ -106,7 +108,6 @@ function getNetworkInfo() {
   for (const name of Object.keys(interfaces)) {
     for (const netIf of interfaces[name]) {
       if (netIf.family === 'IPv4' && !netIf.internal) {
-        // Cek range Tailscale: 100.64.0.0 - 100.127.255.255 atau nama interface tailscale/tun
         const parts = netIf.address.split('.').map(Number);
         const isTailscaleCgnat = parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127;
         const isTailscaleName = name.toLowerCase().includes('tailscale') || name.toLowerCase().includes('tun');
@@ -120,7 +121,6 @@ function getNetworkInfo() {
     }
   }
 
-  // Fallback: jalankan ip addr show
   if (!tailscaleIp) {
     try {
       const ipOutput = execSync('ip -4 addr show 2>/dev/null || ifconfig 2>/dev/null', { timeout: 1500 }).toString();
@@ -131,7 +131,6 @@ function getNetworkInfo() {
     } catch (e) {}
   }
 
-  // Coba cek tailscale status CLI jika terpasang
   let tailscaleDeviceName = null;
   let tailscaleStatus = false;
   try {
@@ -194,7 +193,6 @@ setInterval(() => {
   lastCpuSample = newSample;
 }, 2000);
 
-// Hitung Throughput Jaringan (RX / TX KB/s) via /proc/net/dev
 let lastNetSample = { rx: 0, tx: 0, time: Date.now() };
 let currentNetSpeed = { rxKbps: 0, txKbps: 0 };
 
@@ -245,7 +243,7 @@ function getThermalInfo() {
         const typePath = path.join(thermalBase, dir, 'type');
         if (fs.existsSync(tempPath)) {
           let raw = parseInt(fs.readFileSync(tempPath, 'utf8').trim(), 10);
-          if (raw > 1000) raw = Math.round(raw / 1000); // millidegree ke Celsius
+          if (raw > 1000) raw = Math.round(raw / 1000);
           let type = dir;
           if (fs.existsSync(typePath)) {
             type = fs.readFileSync(typePath, 'utf8').trim();
@@ -415,6 +413,19 @@ function stopVpsService() {
 }
 
 // ------------------------------------------------------------------
+// APP STORE & SERVICE MANAGER DEFINITION
+// ------------------------------------------------------------------
+const APP_MANAGER_SCRIPT = path.join(UBUNTU_SCRIPTS_DIR, 'app-manager.sh');
+const SUPPORTED_APPS = [
+  { id: 'adguard', name: 'AdGuard Home', desc: 'DNS Adblocker & Pelindung Privasi Jaringan', port: 3000, protocol: 'HTTP', defaultUrl: ':3000' },
+  { id: 'mariadb', name: 'MariaDB Server', desc: 'RDBMS Relational Database MySQL-compatible', port: 3306, protocol: 'MySQL', defaultUrl: ':3306' },
+  { id: 'postgresql', name: 'PostgreSQL Server', desc: 'Object-Relational SQL Database performa tinggi', port: 5432, protocol: 'Postgres', defaultUrl: ':5432' },
+  { id: 'caddy', name: 'Caddy Web Server', desc: 'Reverse Proxy & Static Web Server', port: 2019, protocol: 'HTTP', defaultUrl: ':80' },
+  { id: 'syncthing', name: 'Syncthing File Sync', desc: 'Sinkronisasi File Terdesentralisasi Antar-Perangkat', port: 8384, protocol: 'HTTP', defaultUrl: ':8384' },
+  { id: 'aria2', name: 'Aria2 RPC Downloader', desc: 'Multi-connection Download & Torrent Station', port: 6800, protocol: 'RPC', defaultUrl: ':6800' }
+];
+
+// ------------------------------------------------------------------
 // FILE MANAGER ENGINE
 // ------------------------------------------------------------------
 function resolveSafePath(userPath) {
@@ -510,24 +521,40 @@ const server = http.createServer(async (req, res) => {
   const pathname = parsedUrl.pathname;
 
   // -------------------------
-  // PUBLIC ROUTES
+  // PUBLIC ROUTES (With Anti-Brute Force Protection)
   // -------------------------
   if (pathname === '/api/auth/login' && req.method === 'POST') {
+    const clientIp = req.socket.remoteAddress || '127.0.0.1';
+    const attemptInfo = loginAttempts.get(clientIp);
+
+    if (attemptInfo && attemptInfo.lockedUntil && Date.now() < attemptInfo.lockedUntil) {
+      const waitMinutes = Math.ceil((attemptInfo.lockedUntil - Date.now()) / 60000);
+      sendJSON(res, 429, { ok: false, message: `Terlalu banyak percobaan gagal. Akun dikunci sementara. Silakan tunggu ${waitMinutes} menit.` });
+      return;
+    }
+
     try {
       const body = await parseJSONBody(req);
       const user = (body.username || '').trim();
       const pass = (body.password || '').trim();
 
       if (user === authConfig.username && pass === authConfig.password) {
-        const ip = req.socket.remoteAddress;
-        const token = createSession(user, ip);
+        loginAttempts.delete(clientIp);
+        const token = createSession(user, clientIp);
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'Set-Cookie': `tms_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 86400}`
         });
         res.end(JSON.stringify({ ok: true, message: 'Login berhasil!' }));
       } else {
-        sendJSON(res, 401, { ok: false, message: 'Username atau Password salah!' });
+        const curCount = (attemptInfo?.count || 0) + 1;
+        if (curCount >= 5) {
+          loginAttempts.set(clientIp, { count: curCount, lockedUntil: Date.now() + 5 * 60 * 1000 });
+          sendJSON(res, 429, { ok: false, message: 'Terlalu banyak percobaan gagal. Akses login dikunci selama 5 menit.' });
+        } else {
+          loginAttempts.set(clientIp, { count: curCount, lockedUntil: null });
+          sendJSON(res, 401, { ok: false, message: `Username atau Password salah! (Sisa percobaan: ${5 - curCount})` });
+        }
       }
     } catch (e) {
       sendJSON(res, 400, { ok: false, message: e.message });
@@ -598,14 +625,32 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 2. Tailscale Status & IP
+    // 2. Network Latency Ping Tool
+    if (pathname === '/api/system/ping' && req.method === 'GET') {
+      const startTime = Date.now();
+      const socket = net.createConnection({ host: '1.1.1.1', port: 53 }, () => {
+        const latency = Date.now() - startTime;
+        socket.destroy();
+        sendJSON(res, 200, { ok: true, latencyMs: latency, target: 'Cloudflare (1.1.1.1)' });
+      });
+      socket.on('error', () => {
+        sendJSON(res, 200, { ok: false, latencyMs: null, message: 'Tidak dapat menjangkau gateway internet' });
+      });
+      socket.setTimeout(2500, () => {
+        socket.destroy();
+        sendJSON(res, 200, { ok: false, latencyMs: null, message: 'Timeout' });
+      });
+      return;
+    }
+
+    // 3. Tailscale Status & IP
     if (pathname === '/api/tailscale/status' && req.method === 'GET') {
       const netInfo = getNetworkInfo();
       sendJSON(res, 200, { ok: true, tailscale: netInfo.tailscale, primaryLocalIp: netInfo.primaryLocalIp });
       return;
     }
 
-    // 3. VPS Status & Controls
+    // 4. VPS Status & Controls
     if (pathname === '/api/vps/status' && req.method === 'GET') {
       const vps = await getVpsStatus();
       sendJSON(res, 200, { ok: true, vps });
@@ -633,7 +678,128 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 4. File Manager Endpoints
+    // 5. SSH Key Management
+    if (pathname === '/api/vps/ssh-keys' && req.method === 'GET') {
+      let keys = '';
+      const candidateFiles = [
+        path.join(TERMUX_HOME, '.ssh/authorized_keys'),
+        path.join(PREFIX, 'var/lib/proot-distro/installed-rootfs/ubuntu/root/.ssh/authorized_keys')
+      ];
+      for (const f of candidateFiles) {
+        if (fs.existsSync(f)) {
+          keys = fs.readFileSync(f, 'utf8');
+          break;
+        }
+      }
+      sendJSON(res, 200, { ok: true, keys });
+      return;
+    }
+
+    if (pathname === '/api/vps/ssh-keys' && req.method === 'POST') {
+      try {
+        const body = await parseJSONBody(req);
+        const keys = (body.keys || '').trim();
+        const candidateDirs = [
+          path.join(TERMUX_HOME, '.ssh'),
+          path.join(PREFIX, 'var/lib/proot-distro/installed-rootfs/ubuntu/root/.ssh'),
+          path.join(PREFIX, 'var/lib/proot-distro/installed-rootfs/ubuntu/home/ubuntu/.ssh')
+        ];
+        for (const dir of candidateDirs) {
+          try {
+            if (fs.existsSync(path.dirname(dir))) {
+              fs.mkdirSync(dir, { recursive: true });
+              const f = path.join(dir, 'authorized_keys');
+              fs.writeFileSync(f, keys + '\n', { mode: 0o600 });
+            }
+          } catch (e) {}
+        }
+        sendJSON(res, 200, { ok: true, message: 'Kunci SSH (authorized_keys) berhasil diperbarui!' });
+      } catch (e) {
+        sendJSON(res, 500, { ok: false, message: e.message });
+      }
+      return;
+    }
+
+    // 6. App Store & Services Endpoints
+    if (pathname === '/api/apps/list' && req.method === 'GET') {
+      const appsWithStatus = [];
+      for (const app of SUPPORTED_APPS) {
+        const isRunning = await isPortActive(app.port);
+        appsWithStatus.push({
+          ...app,
+          running: isRunning
+        });
+      }
+      sendJSON(res, 200, { ok: true, apps: appsWithStatus });
+      return;
+    }
+
+    if (pathname === '/api/apps/control' && req.method === 'POST') {
+      try {
+        const body = await parseJSONBody(req);
+        const appId = (body.appId || '').replace(/[^a-z0-9]/g, '');
+        const action = (body.action || '').replace(/[^a-z]/g, '');
+        if (!appId || !action) {
+          sendJSON(res, 400, { ok: false, message: 'Parameter appId dan action diperlukan.' });
+          return;
+        }
+
+        if (fs.existsSync(APP_MANAGER_SCRIPT)) {
+          exec(`bash "${APP_MANAGER_SCRIPT}" ${appId} ${action}`, { cwd: BASE_DIR }, (err, stdout, stderr) => {
+            sendJSON(res, 200, {
+              ok: !err,
+              message: stdout.trim() || stderr.trim() || `Aksi ${action} pada ${appId} telah diproses.`
+            });
+          });
+        } else {
+          sendJSON(res, 500, { ok: false, message: 'Skrip app-manager.sh tidak ditemukan.' });
+        }
+      } catch (e) {
+        sendJSON(res, 500, { ok: false, message: e.message });
+      }
+      return;
+    }
+
+    // 7. Backup & Restore Endpoints
+    const BACKUP_DIR = fs.existsSync('/sdcard') ? '/sdcard/TMS_Backups' : path.join(TERMUX_HOME, 'tms-backups');
+    const BACKUP_SCRIPT = path.join(BASE_DIR, 'scripts/backup.sh');
+
+    if (pathname === '/api/backup/list' && req.method === 'GET') {
+      let backups = [];
+      if (fs.existsSync(BACKUP_DIR)) {
+        try {
+          const files = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.tar.gz'));
+          backups = files.map(f => {
+            const full = path.join(BACKUP_DIR, f);
+            const s = fs.statSync(full);
+            return {
+              filename: f,
+              size: (s.size / 1024 / 1024).toFixed(2) + ' MB',
+              createdAt: s.mtime.toISOString(),
+              path: full
+            };
+          }).reverse();
+        } catch (e) {}
+      }
+      sendJSON(res, 200, { ok: true, backups, backupDir: BACKUP_DIR });
+      return;
+    }
+
+    if (pathname === '/api/backup/create' && req.method === 'POST') {
+      if (fs.existsSync(BACKUP_SCRIPT)) {
+        exec(`bash "${BACKUP_SCRIPT}"`, { cwd: BASE_DIR }, (err, stdout, stderr) => {
+          sendJSON(res, 200, {
+            ok: !err,
+            message: stdout.trim() || stderr.trim() || 'Cadangan berhasil dibuat!'
+          });
+        });
+      } else {
+        sendJSON(res, 500, { ok: false, message: 'Skrip backup.sh tidak ditemukan.' });
+      }
+      return;
+    }
+
+    // 8. File Manager Endpoints
     if (pathname === '/api/files/list' && req.method === 'GET') {
       try {
         const target = parsedUrl.searchParams.get('path') || DEFAULT_ROOT_DIR;
@@ -744,7 +910,7 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // 5. Terminal Interactive Stream
+    // 9. Terminal Interactive Stream
     if (pathname === '/api/terminal/stream' && req.method === 'POST') {
       try {
         const body = await parseJSONBody(req);
@@ -821,7 +987,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 6. Kill Process Endpoint
+    // 10. Kill Process Endpoint
     if (pathname === '/api/process/kill' && req.method === 'POST') {
       try {
         const body = await parseJSONBody(req);
@@ -838,7 +1004,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 7. PM2 & Process Status
+    // 11. PM2 & Process Status
     if (pathname === '/api/pm2/status' && req.method === 'GET') {
       try {
         const out = execSync('pm2 jlist 2>/dev/null', { timeout: 2500 }).toString();
@@ -850,7 +1016,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 8. Device Controls (Termux-API)
+    // 12. Device Controls (Termux-API)
     if (pathname === '/api/device/action' && req.method === 'POST') {
       try {
         const body = await parseJSONBody(req);
@@ -874,7 +1040,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 9. Account Settings
+    // 13. Account Settings
     if (pathname === '/api/settings/account' && req.method === 'POST') {
       try {
         const body = await parseJSONBody(req);

@@ -173,7 +173,40 @@ EOF
 bash "$BASE_DIR/scripts/start-ubuntu.sh" "\$@"
 EOF
     chmod +x "$PREFIX_BIN/ubuntu"
+
+    # tms-app: 1-Click App Store manager
+    cat << EOF > "$PREFIX_BIN/tms-app"
+#!/data/data/com.termux/files/usr/bin/bash
+bash "$BASE_DIR/scripts/app-manager.sh" "\$@"
+EOF
+    chmod +x "$PREFIX_BIN/tms-app"
+
+    # tms-backup: Backup konfigurasi dan data
+    cat << EOF > "$PREFIX_BIN/tms-backup"
+#!/data/data/com.termux/files/usr/bin/bash
+bash "$BASE_DIR/scripts/backup.sh" "\$@"
+EOF
+    chmod +x "$PREFIX_BIN/tms-backup"
+
+    # tms-restore: Restore konfigurasi dari backup
+    cat << EOF > "$PREFIX_BIN/tms-restore"
+#!/data/data/com.termux/files/usr/bin/bash
+bash "$BASE_DIR/scripts/restore.sh" "\$@"
+EOF
+    chmod +x "$PREFIX_BIN/tms-restore"
 fi
+
+# Setup Autostart Termux:Boot jika aplikasi terpasang
+BOOT_DIR="$HOME/.termux/boot"
+mkdir -p "$BOOT_DIR"
+cat << EOF > "$BOOT_DIR/start-tms.sh"
+#!/data/data/com.termux/files/usr/bin/bash
+sleep 10
+termux-wake-lock 2>/dev/null || true
+bash "$BASE_DIR/start.sh" >/dev/null 2>&1 &
+EOF
+chmod +x "$BOOT_DIR/start-tms.sh"
+
 
 # -----------------------------------------------------------------------------
 # 5. PEMBERSIHAN CACHE & FINISHING

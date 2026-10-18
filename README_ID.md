@@ -32,16 +32,31 @@ Berbeda dengan skrip komunitas lama yang sering rusak akibat tunnel biner yang t
 
 ## ✨ Fitur Utama
 
-* 🌐 **Web Dashboard Modern Dark Mode (Port 8080)**
-  * Tampilan antarmuka gelap yang elegan dan responsif di layar HP, tablet, maupun monitor laptop/PC.
-  * Pemantauan telemetri perangkat secara *real-time*: Beban CPU %, Penggunaan RAM, Kapasitas Penyimpanan Disk, Sensor Suhu SoC/CPU, serta Status & Suhu Baterai HP.
+* 🌐 **Web Dashboard Modern & Mode AMOLED (Port 8080)**
+  * Tampilan antarmuka gelap yang elegan, modern, dan responsif dengan sakelar **Mode AMOLED Pitch Black (`#000000`)** untuk menghemat konsumsi daya layar HP secara maksimal.
+  * Pemantauan telemetri perangkat secara *real-time*: Beban CPU %, Alokasi RAM, Kapasitas Penyimpanan Disk, Sensor Suhu SoC/CPU, Status & Daya Baterai, serta Kecepatan Jaringan Live (RX/TX KB/s) menggunakan grafik *sparkline* Canvas HTML5 tanpa dependensi berat.
+  * Indikator **Internet Ping Latency** ke Cloudflare (`1.1.1.1`) dan spanduk otomatis **Peringatan Overheat** jika suhu baterai/chipset melampaui 45°C.
 * 🔒 **Akses Jarak Jauh Tailscale Terintegrasi**
   * Deteksi otomatis IP Tailscale perangkat (`100.x.y.z`) beserta status koneksinya.
-  * Tombol 1-klik untuk menyalin tautan akses Web Dashboard dan perintah terminal SSH jarak jauh.
+  * Tombol 1-klik untuk menyalin tautan akses Web Dashboard dan perintah terminal SSH jarak jauh tanpa *port forwarding* modem.
 * 🖥️ **Ubuntu Linux VPS Penuh (Port 2222)**
   * Lingkungan sistem operasi Ubuntu Linux asli berjalan via PRoot tanpa perlu akses *root*.
   * Dilengkapi OpenSSH Server aktif di port `2222` dengan akun user `root` dan `ubuntu`.
+  * Fitur **SSH Public Key Manager** (`authorized_keys`) untuk login SSH dari laptop/PC tanpa perlu mengetik password.
   * Masuk langsung ke terminal root Ubuntu dari Termux dengan mengetik perintah `ubuntu`.
+* 📦 **1-Click Self-Hosted App Store & Layanan Server**
+  * Pasang dan kelola aplikasi server populer langsung lewat panel web atau CLI:
+    * **AdGuard Home**: Pemblokir iklan & pelindung privasi DNS seluruh jaringan (Port `3000`).
+    * **MariaDB Server**: Database relasional SQL standar industri setara MySQL (Port `3306`).
+    * **PostgreSQL Server**: Mesin database objek-relasional performa tinggi (Port `5432`).
+    * **Caddy Web Server**: Reverse proxy otomatis HTTPS dan server web statis (Port `80`).
+    * **Syncthing**: Sinkronisasi berkas terdesentralisasi antar-perangkat secara aman (Port `8384`).
+    * **Aria2 RPC**: Pengunduh multi-koneksi dan *torrent client* berkecepatan tinggi (Port `6800`).
+* 🛡️ **Sistem Pencadangan & Pemulihan (Backup & Restore)**
+  * Pembuatan arsip cadangan `.tar.gz` berstempel waktu secara otomatis ke memori internal (`/sdcard/TMS_Backups`).
+  * Memudahkan migrasi konfigurasi panel, database, dan berkas penting saat berganti HP.
+* 🔄 **Integrasi Autostart Termux:Boot**
+  * Dilengkapi konfigurasi otomatis di `~/.termux/boot/start-tms.sh` agar server dan VPS langsung berjalan sendiri di latar belakang saat HP dihidupkan ulang (*reboot*).
 * 📁 **Web File Manager Bawaan**
   * Jelajahi direktori lokal Termux (`~`) maupun penyimpanan internal Android (`/sdcard`).
   * Buka, ubah, dan simpan kode atau berkas teks langsung melalui editor browser.
@@ -49,8 +64,9 @@ Berbeda dengan skrip komunitas lama yang sering rusak akibat tunnel biner yang t
 * 💻 **Web Bash Console / Streaming Terminal**
   * Jalankan perintah bash Termux langsung dari peramban web.
   * Tampilan *live streaming output* dengan dukungan penghentian perintah **Ctrl + C**.
-* ⚡ **Manajer Proses (PM2)**
+* ⚡ **Manajer Proses (PM2) & Proteksi Anti-Brute Force**
   * Pantau dan kelola proses aplikasi Node.js serta berkas log server.
+  * Pembatas laju login (*rate limiter*) otomatis mengunci IP penyerang selama 5 menit setelah 5 kali gagal memasukkan password berturut-turut.
 * 📱 **Pintasan Kontrol Hardware HP**
   * Kendalikan fitur perangkat: sakelar CPU wake-lock, senter/torch, uji getar, dan penjaga server aktif 24 jam.
 
@@ -162,6 +178,9 @@ Setelah instalasi selesai, Anda dapat menjalankan perintah singkat ini langsung 
 | `tms-server` | Menjalankan Web Dashboard (port 8080) dan Ubuntu VPS SSH (port 2222). |
 | `tms-status` | Memeriksa status port, menampilkan IP Wi-Fi lokal dan IP Tailscale aktif. |
 | `tms-stop` | Menghentikan seluruh proses server dan Ubuntu VPS secara aman. |
+| `tms-app` | Manajemen App Store (`tms-app [adguard|mariadb|postgresql|caddy|syncthing|aria2] [install|start|stop|status]`). |
+| `tms-backup` | Membuat arsip cadangan sistem `.tar.gz` (konfigurasi, database, dan data panel). |
+| `tms-restore` | Memulihkan sistem dari berkas arsip cadangan yang ditentukan. |
 | `ubuntu` | Masuk langsung ke sesi interaktif root di dalam distro Ubuntu Linux VPS. |
 
 ---
@@ -170,7 +189,7 @@ Setelah instalasi selesai, Anda dapat menjalankan perintah singkat ini langsung 
 
 ```text
 termux-mini-server/
-├── install.sh                # Skrip instalasi otomatis 1-klik
+├── install.sh                # Skrip instalasi otomatis 1-klik & setup Termux:Boot
 ├── start.sh                  # Skrip peluncur layanan (Panel + VPS SSH)
 ├── stop.sh                   # Skrip penghenti layanan
 ├── status.sh                 # Skrip diagnostik status port & IP
@@ -182,6 +201,9 @@ termux-mini-server/
 │   └── public/
 │       └── index.html        # Antarmuka web panel modern responsif
 └── scripts/
+    ├── app-manager.sh        # Pengelola instalasi & layanan App Store
+    ├── backup.sh             # Skrip generator pencadangan sistem otomatis
+    ├── restore.sh            # Utilitas pemulihan cadangan sistem
     ├── start-ubuntu.sh       # Wrapper eksekusi Ubuntu PRoot & daemon SSH
     ├── setup-tailscale.sh    # Alat bantu pengecekan koneksi Tailscale
     └── vps-init.sh           # Skrip konfigurasi awal internal Ubuntu

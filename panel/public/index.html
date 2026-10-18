@@ -30,6 +30,15 @@
       --font-mono: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Consolas, monospace;
     }
 
+    body.theme-amoled {
+      --bg-base: #000000;
+      --bg-surface: #040508;
+      --bg-card: #090c12;
+      --bg-card-hover: #101520;
+      --bg-input: #000000;
+      --border: #161e2e;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background-color: var(--bg-base);
@@ -509,6 +518,9 @@
     </div>
 
     <div class="header-telemetry">
+      <div class="stat-pill" title="Internet Latency (Cloudflare DNS 1.1.1.1)">
+        <span style="color: var(--emerald);">PING</span> <span id="hdr-ping" class="mono">-- ms</span>
+      </div>
       <div class="stat-pill" title="Kecepatan Transfer Jaringan">
         <span style="color: var(--cyan);">↓</span> <span id="hdr-net-rx" class="mono">0 KB/s</span>
         <span style="color: var(--indigo); margin-left: 4px;">↑</span> <span id="hdr-net-tx" class="mono">0 KB/s</span>
@@ -519,6 +531,7 @@
       <div class="stat-pill" title="Uptime Server">
         <span style="color: var(--text-sub);">UP</span> <span id="hdr-uptime" class="mono">0h 0m</span>
       </div>
+      <button class="btn btn-xs" id="btn-theme-toggle" onclick="toggleAmoledTheme()" title="Ubah Tema AMOLED Pitch Black">🌙 AMOLED</button>
       <button class="btn btn-xs" onclick="logout()">Logout</button>
     </div>
   </header>
@@ -542,6 +555,10 @@
       </div>
 
       <div class="nav-label" style="margin-top: 10px;">Manajemen</div>
+      <div class="nav-btn" onclick="switchView('apps')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        App Store
+      </div>
       <div class="nav-btn" onclick="switchView('files')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         File Manager
@@ -549,6 +566,10 @@
       <div class="nav-btn" onclick="switchView('pm2')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
         Proses & PM2
+      </div>
+      <div class="nav-btn" onclick="switchView('backup')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Backup & Restore
       </div>
       <div class="nav-btn" onclick="switchView('settings')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -561,6 +582,15 @@
 
       <!-- VIEW 1: DASHBOARD -->
       <div id="view-dashboard" class="view-pane active">
+
+        <!-- Overheat Safety Alert Banner -->
+        <div id="overheat-banner" style="display: none; background: rgba(244, 63, 94, 0.18); border: 1px solid var(--rose); color: #fb7185; padding: 10px 16px; border-radius: 8px; margin-bottom: 14px; font-size: 12px; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">🔥</span>
+            <span><strong>PERINGATAN OVERHEAT:</strong> Suhu baterai/chipset mencapai <strong id="overheat-temp" style="color: #fff;">0 °C</strong>! Disarankan lepas casing HP atau posisikan di dekat kipas angin agar baterai tetap awet.</span>
+          </div>
+          <button class="btn btn-xs btn-danger" onclick="document.getElementById('overheat-banner').style.display = 'none'">Tutup</button>
+        </div>
 
         <!-- Tailscale Hero Access Card -->
         <div class="ts-hero">
@@ -777,6 +807,22 @@
             </div>
           </div>
         </div>
+
+        <!-- SSH Public Key Manager Card -->
+        <div class="t-card" style="margin-bottom: 16px;">
+          <div class="t-card-header">
+            <span class="t-card-label">SSH PUBLIC KEY MANAGER (AUTHORIZED_KEYS)</span>
+            <button class="btn btn-xs" onclick="fetchSshKeys()">Segarkan</button>
+          </div>
+          <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">
+            Tempelkan SSH Public Key (misal dari berkas <code>~/.ssh/id_ed25519.pub</code> atau <code>~/.ssh/id_rsa.pub</code> di laptop/PC) untuk login SSH ke Ubuntu tanpa perlu mengetik password lagi.
+          </p>
+          <textarea id="ssh-keys-input" placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user@laptop" style="width: 100%; height: 95px; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-family: var(--font-mono); font-size: 11px; outline: none; margin-bottom: 10px; resize: vertical;"></textarea>
+          <div style="display: flex; justify-content: flex-end;">
+            <button class="btn btn-sm btn-primary" onclick="saveSshKeys()">Simpan SSH Key</button>
+          </div>
+        </div>
+
       </div>
 
       <!-- VIEW 3: WEB TERMINAL -->
@@ -860,6 +906,50 @@
             <button class="btn btn-xs" onclick="fetchPm2Data()">Segarkan</button>
           </div>
           <div id="pm2-content" style="font-size: 12px;">Memeriksa proses PM2...</div>
+        </div>
+      </div>
+
+      <!-- VIEW: APP STORE -->
+      <div id="view-apps" class="view-pane">
+        <div class="t-card" style="margin-bottom: 16px;">
+          <div class="t-card-header">
+            <span class="t-card-label">1-CLICK APP STORE & LAYANAN MANDIRI</span>
+            <button class="btn btn-xs" onclick="fetchAppsList()">Segarkan Status</button>
+          </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+            Pasang dan operasikan aplikasi server populer langsung di HP Android Anda tanpa konfigurasi manual rumit.
+          </p>
+          <div id="apps-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px;">
+            <div style="color: var(--text-sub); font-size: 12px;">Memuat katalog aplikasi...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: BACKUP & RESTORE -->
+      <div id="view-backup" class="view-pane">
+        <div class="t-card">
+          <div class="t-card-header">
+            <span class="t-card-label">PENCADANGAN & PEMULIHAN SISTEM (BACKUP & RESTORE)</span>
+            <button class="btn btn-xs btn-primary" onclick="createBackup()">📦 Buat Cadangan Baru</button>
+          </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+            Cadangan konfigurasi panel, user data, script, dan database disimpan dalam format <code>.tar.gz</code> di memori internal (<code id="backup-loc-text">/sdcard/TMS_Backups</code>) sehingga aman saat ganti perangkat.
+          </p>
+          <div style="overflow-x: auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>NAMA ARSIP CADANGAN</th>
+                  <th>UKURAN</th>
+                  <th>WAKTU PEMBUATAN</th>
+                  <th style="text-align: right;">AKSI</th>
+                </tr>
+              </thead>
+              <tbody id="backup-tbody">
+                <tr><td colspan="4" style="color: var(--text-sub);">Memeriksa daftar cadangan...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1062,14 +1152,16 @@
       const target = document.getElementById('view-' + viewId);
       if (target) target.classList.add('active');
 
-      const tabs = ['dashboard', 'vps', 'terminal', 'files', 'pm2', 'settings'];
+      const tabs = ['dashboard', 'vps', 'terminal', 'apps', 'files', 'pm2', 'backup', 'settings'];
       const btns = document.querySelectorAll('.nav-btn');
       const idx = tabs.indexOf(viewId);
       if (idx !== -1 && btns[idx]) btns[idx].classList.add('active');
 
       if (viewId === 'files') browsePath(currentDir);
-      if (viewId === 'vps') fetchVpsData();
+      if (viewId === 'vps') { fetchVpsData(); fetchSshKeys(); }
       if (viewId === 'pm2') fetchPm2Data();
+      if (viewId === 'apps') fetchAppsList();
+      if (viewId === 'backup') fetchBackupsList();
     }
 
     // --- Telemetry Polling ---
@@ -1135,6 +1227,17 @@
         historyTemp.push(temp);
         historyTemp.shift();
         renderSparkline('chart-temp', historyTemp, '#f59e0b', 'rgba(245, 158, 11, 0.15)', 85);
+
+        // Overheat Safety Warning Trigger
+        const ohBanner = document.getElementById('overheat-banner');
+        if (ohBanner) {
+          if (temp >= 45) {
+            ohBanner.style.display = 'flex';
+            document.getElementById('overheat-temp').textContent = temp + ' °C';
+          } else {
+            ohBanner.style.display = 'none';
+          }
+        }
 
         // 5. Disk
         document.getElementById('c-disk-pct').textContent = data.disk.percent + '%';
@@ -1537,9 +1640,173 @@
       location.reload();
     }
 
+    // --- Internet Ping Tool ---
+    async function checkPing() {
+      try {
+        const res = await fetch('/api/system/ping');
+        const data = await res.json();
+        const el = document.getElementById('hdr-ping');
+        if (data.ok && data.latencyMs !== null) {
+          el.textContent = data.latencyMs + ' ms';
+          el.style.color = data.latencyMs < 80 ? 'var(--emerald)' : (data.latencyMs < 200 ? 'var(--amber)' : 'var(--rose)');
+        } else {
+          el.textContent = 'Err';
+          el.style.color = 'var(--rose)';
+        }
+      } catch (e) {
+        const el = document.getElementById('hdr-ping');
+        if (el) el.textContent = 'Off';
+      }
+    }
+
+    // --- AMOLED Theme Switcher ---
+    function toggleAmoledTheme() {
+      const isAmoled = document.body.classList.toggle('theme-amoled');
+      localStorage.setItem('tms_amoled', isAmoled ? '1' : '0');
+      const btn = document.getElementById('btn-theme-toggle');
+      if (btn) btn.textContent = isAmoled ? '☀️ Standar' : '🌙 AMOLED';
+      showToast(isAmoled ? 'Mode AMOLED Pitch Black aktif' : 'Mode tema standar aktif', 'info');
+    }
+
+    function initTheme() {
+      if (localStorage.getItem('tms_amoled') === '1') {
+        document.body.classList.add('theme-amoled');
+        const btn = document.getElementById('btn-theme-toggle');
+        if (btn) btn.textContent = '☀️ Standar';
+      }
+    }
+
+    // --- SSH Key Manager ---
+    async function fetchSshKeys() {
+      try {
+        const res = await fetch('/api/vps/ssh-keys');
+        const data = await res.json();
+        if (data.ok) {
+          document.getElementById('ssh-keys-input').value = data.keys || '';
+        }
+      } catch (e) {}
+    }
+
+    async function saveSshKeys() {
+      const keys = document.getElementById('ssh-keys-input').value.trim();
+      try {
+        const res = await fetch('/api/vps/ssh-keys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keys })
+        });
+        const data = await res.json();
+        showToast(data.message, data.ok ? 'success' : 'warn');
+      } catch (e) {
+        showToast('Gagal menyimpan: ' + e.message, 'warn');
+      }
+    }
+
+    // --- App Store & Service Manager ---
+    async function fetchAppsList() {
+      const grid = document.getElementById('apps-grid');
+      if (!grid) return;
+      grid.innerHTML = '<div style="color: var(--text-sub); font-size: 12px;">Memeriksa status aplikasi...</div>';
+      try {
+        const res = await fetch('/api/apps/list');
+        const data = await res.json();
+        if (!data.ok || !data.apps) throw new Error(data.message || 'Gagal memuat katalog');
+
+        grid.innerHTML = data.apps.map(app => {
+          const isRun = app.running;
+          const hostIp = currentTailscaleIp || currentLocalIp || 'localhost';
+          const linkUrl = 'http://' + hostIp + app.defaultUrl;
+          return `
+            <div class="t-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                  <strong style="color: #fff; font-size: 14px;">${app.name}</strong>
+                  <span class="badge ${isRun ? 'badge-emerald' : 'badge-amber'}">${isRun ? 'RUNNING' : 'STOPPED'}</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">${app.desc}</p>
+                <div style="font-size: 11px; color: var(--text-sub); font-family: var(--font-mono); margin-bottom: 14px;">
+                  Port: <strong style="color: var(--cyan);">${app.port}</strong> (${app.protocol})
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 10px;">
+                ${!isRun ? `
+                  <button class="btn btn-xs btn-primary" onclick="controlApp('${app.id}', 'install')">Pasang (Install)</button>
+                  <button class="btn btn-xs btn-success" onclick="controlApp('${app.id}', 'start')">Jalankan</button>
+                ` : `
+                  <button class="btn btn-xs btn-danger" onclick="controlApp('${app.id}', 'stop')">Hentikan</button>
+                  ${app.protocol === 'HTTP' ? `<a href="${linkUrl}" target="_blank" class="btn btn-xs" style="color: var(--cyan);">Buka Web UI ↗</a>` : ''}
+                `}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        grid.innerHTML = `<div style="color: var(--rose); font-size: 12px;">Gagal: ${e.message}</div>`;
+      }
+    }
+
+    async function controlApp(appId, action) {
+      showToast(`Memproses ${action} untuk ${appId}...`, 'info');
+      try {
+        const res = await fetch('/api/apps/control', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appId, action })
+        });
+        const data = await res.json();
+        showToast(data.message, data.ok ? 'success' : 'warn');
+        setTimeout(fetchAppsList, 1500);
+      } catch (e) {
+        showToast('Error: ' + e.message, 'warn');
+      }
+    }
+
+    // --- Backup & Restore ---
+    async function fetchBackupsList() {
+      const tbody = document.getElementById('backup-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="4" style="color: var(--text-sub);">Memuat daftar cadangan...</td></tr>';
+      try {
+        const res = await fetch('/api/backup/list');
+        const data = await res.json();
+        if (data.backupDir) document.getElementById('backup-loc-text').textContent = data.backupDir;
+        if (!data.ok || !data.backups || data.backups.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="color: var(--text-sub);">Belum ada arsip cadangan dibuat. Klik "Buat Cadangan Baru" di atas.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.backups.map(b => `
+          <tr>
+            <td><strong style="color: #fff;">📦 ${b.filename}</strong></td>
+            <td class="mono" style="color: var(--cyan);">${b.size}</td>
+            <td class="mono" style="color: var(--text-sub);">${b.createdAt.substring(0, 19).replace('T', ' ')}</td>
+            <td style="text-align: right;">
+              <a href="/api/files/download?path=${encodeURIComponent(b.path)}" class="btn btn-xs" download>Unduh</a>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" style="color: var(--rose);">Gagal: ${e.message}</td></tr>`;
+      }
+    }
+
+    async function createBackup() {
+      showToast('Sedang membuat arsip cadangan sistem...', 'info');
+      try {
+        const res = await fetch('/api/backup/create', { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message, data.ok ? 'success' : 'warn');
+        fetchBackupsList();
+      } catch (e) {
+        showToast('Gagal membuat cadangan: ' + e.message, 'warn');
+      }
+    }
+
     // Initial check
+    initTheme();
     updateTelemetry();
+    checkPing();
     setInterval(updateTelemetry, 3000);
+    setInterval(checkPing, 10000);
   </script>
 </body>
 </html>

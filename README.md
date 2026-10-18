@@ -32,16 +32,31 @@ Unlike legacy community scripts that often break due to unmaintained binary tunn
 
 ## ✨ Features
 
-* 🌐 **Modern Dark-Mode Web Dashboard (Port 8080)**
-  * Sleek, mobile-friendly interface designed with high-contrast dark aesthetics.
-  * Real-time hardware telemetry: CPU load %, RAM usage, Disk storage, SoC/CPU thermal sensors, and Battery status.
+* 🌐 **Modern Dark-Mode & AMOLED Web Dashboard (Port 8080)**
+  * Sleek, mobile-friendly interface designed with high-contrast dark aesthetics and **AMOLED Pitch Black (`#000000`)** toggle for maximum battery conservation.
+  * Real-time hardware telemetry: CPU load %, RAM usage, Disk storage, SoC/CPU thermal sensors, battery status, and active network speed (RX/TX KB/s) rendered via zero-dependency HTML5 Canvas sparklines.
+  * Live **Internet Ping Latency** to Cloudflare (`1.1.1.1`) and automatic **Overheat Safety Banner** when thermal levels exceed 45°C.
 * 🔒 **Seamless Tailscale Remote Access**
   * Automatic detection of your Tailscale IP (`100.x.y.z`) and connection state.
-  * One-click copying of remote Web Dashboard and SSH terminal URLs.
+  * One-click copying of remote Web Dashboard and SSH terminal URLs without port-forwarding or public IP exposure.
 * 🖥️ **Full Ubuntu Linux VPS (Port 2222)**
   * Genuine Ubuntu environment running via PRoot (no root required).
   * Pre-configured OpenSSH Server listening on port `2222` with `root` and `ubuntu` user accounts.
+  * Built-in **SSH Public Key Manager** (`authorized_keys`) for passwordless SSH logins from your PC.
   * Instant interactive terminal entry with the `ubuntu` command.
+* 📦 **1-Click Self-Hosted App Store & Services**
+  * Install and control popular server packages directly from the web panel or CLI:
+    * **AdGuard Home**: Network-wide DNS ad-blocker & privacy protector (Port `3000`).
+    * **MariaDB Server**: Production-grade MySQL-compatible relational database (Port `3306`).
+    * **PostgreSQL Server**: Robust object-relational database engine (Port `5432`).
+    * **Caddy Web Server**: Automated HTTPS reverse proxy and static site host (Port `80`).
+    * **Syncthing**: Decentralized, encrypted continuous file synchronization (Port `8384`).
+    * **Aria2 RPC**: Multi-source high-speed downloader and torrent engine (Port `6800`).
+* 🛡️ **Automated Backup & Restore Engine**
+  * 1-Click creation of timestamped `.tar.gz` system archives saved to Android internal storage (`/sdcard/TMS_Backups`).
+  * Easily preserve and migrate server configurations, user databases, and files across devices.
+* 🔄 **Termux:Boot Autostart Integration**
+  * Pre-configured script in `~/.termux/boot/start-tms.sh` to automatically launch your server whenever the phone reboots.
 * 📁 **Built-in Web File Manager**
   * Browse Termux home (`~`) and Android shared storage (`/sdcard`).
   * In-browser code and text editor.
@@ -49,8 +64,9 @@ Unlike legacy community scripts that often break due to unmaintained binary tunn
 * 💻 **Web Bash Console / Streaming Terminal**
   * Execute bash commands directly from your browser.
   * Real-time chunked streaming output with interactive **Ctrl + C** job termination.
-* ⚡ **Process Manager (PM2)**
+* ⚡ **Process Manager (PM2) & Anti-Brute Force Login**
   * Monitor and inspect background Node.js processes and server logs.
+  * IP-based rate-limiter locks login attempts for 5 minutes after 5 consecutive failed credentials to stop dictionary attacks.
 * 📱 **Hardware Quick Controls**
   * Toggle CPU wake-lock, flash torch, trigger vibration, and keep the phone awake 24/7.
 
@@ -162,6 +178,9 @@ Once installed, you can execute these commands from anywhere in your Termux term
 | `tms-server` | Launches both the Web Dashboard (port 8080) and Ubuntu VPS SSH (port 2222). |
 | `tms-status` | Displays live service status, active ports, Local Wi-Fi IP, and Tailscale IP. |
 | `tms-stop` | Safely terminates all panel and VPS processes. |
+| `tms-app` | Manage 1-Click Apps (`tms-app [adguard|mariadb|postgresql|caddy|syncthing|aria2] [install|start|stop|status]`). |
+| `tms-backup` | Generates a timestamped `.tar.gz` archive of configurations, databases, and panel data. |
+| `tms-restore` | Restores server data from a specified backup archive. |
 | `ubuntu` | Drops directly into the root terminal of your Ubuntu Linux VPS. |
 
 ---
@@ -170,7 +189,7 @@ Once installed, you can execute these commands from anywhere in your Termux term
 
 ```text
 termux-mini-server/
-├── install.sh                # 1-Click interactive installer
+├── install.sh                # 1-Click interactive installer & Termux:Boot setup
 ├── start.sh                  # Service launcher (Panel + VPS SSH)
 ├── stop.sh                   # Graceful service shutdown
 ├── status.sh                 # Status & IP diagnosis script
@@ -182,6 +201,9 @@ termux-mini-server/
 │   └── public/
 │       └── index.html        # Single-page modern responsive web panel
 └── scripts/
+    ├── app-manager.sh        # 1-Click App Store backend manager
+    ├── backup.sh             # Automated system backup generator
+    ├── restore.sh            # System restore utility
     ├── start-ubuntu.sh       # Ubuntu PRoot execution & SSH daemon script
     ├── setup-tailscale.sh    # Tailscale connectivity checker
     └── vps-init.sh           # Internal Ubuntu initial setup script
