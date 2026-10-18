@@ -1192,6 +1192,14 @@ const server = http.createServer(async (req, res) => {
         const body = await parseJSONBody(req);
         const action = body.action;
         let cmd = '';
+        const requiresTermuxApi = ['torch_on', 'torch_off', 'vibrate', 'brightness_dim', 'brightness_normal', 'brightness_max', 'notification', 'tts'];
+        if (requiresTermuxApi.includes(action) && !checkTermuxApi()) {
+          sendJSON(res, 400, {
+            ok: false,
+            message: 'Fitur ini memerlukan paket termux-api. Klik "Pasang Paket Sekarang" di dashboard atau jalankan pkg install termux-api.'
+          });
+          return;
+        }
 
         if (action === 'wakelock_on') {
           cmd = 'termux-wake-lock';

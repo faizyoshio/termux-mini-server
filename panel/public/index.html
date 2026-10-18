@@ -1020,8 +1020,33 @@
               <span class="badge badge-cyan" id="hw-api-badge">API READY</span>
             </div>
 
+            <!-- Termux-API Helper Banner (Dynamic) -->
+            <div id="hw-api-install-banner" style="display: none; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div style="color: var(--cyan); display: flex; align-items: center; gap: 6px;">
+                  <span>💡</span> <span>Paket <strong>termux-api</strong> belum aktif. Kontrol senter, layar, dan getar memerlukan paket ini.</span>
+                </div>
+                <button class="btn btn-xs btn-primary" onclick="sendAction('install_api')">📥 Pasang Paket Termux-API</button>
+              </div>
+            </div>
+
+            <!-- Battery Gauge Progress Bar -->
+            <div style="margin-bottom: 12px; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+              <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px;">
+                <span style="color: var(--text-sub); font-weight: 600; text-transform: uppercase;">KAPASITAS DAYA & BATERAI</span>
+                <span id="hw-bat-pct-label" style="font-family: var(--font-mono); font-weight: 700; color: #10b981;">--%</span>
+              </div>
+              <div style="height: 8px; width: 100%; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; margin-bottom: 6px;">
+                <div id="hw-battery-fill" style="height: 100%; width: 0%; background: #10b981; border-radius: 4px; transition: width 0.4s ease, background 0.4s ease;"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-sub);">
+                <span id="hw-bat-plug-state">Sumber: Memeriksa...</span>
+                <span id="hw-bat-health-state">Kondisi: Baik</span>
+              </div>
+            </div>
+
             <!-- Live Hardware Telemetry Row -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
               <div>
                 <div style="font-size: 10px; color: var(--text-sub); text-transform: uppercase;">CPU SLEEP POLICY</div>
                 <div id="hw-cpu-status" style="font-size: 13px; font-weight: 600; color: #34d399; font-family: var(--font-mono); margin-top: 2px;">HELD (ANTI-SLEEP)</div>
@@ -1037,6 +1062,27 @@
               <div>
                 <div style="font-size: 10px; color: var(--text-sub); text-transform: uppercase;">HEALTH BATERAI</div>
                 <div id="hw-battery-health" style="font-size: 13px; font-weight: 600; color: #38bdf8; font-family: var(--font-mono); margin-top: 2px;">-</div>
+              </div>
+            </div>
+
+            <!-- Device Hardware Specs Box -->
+            <div style="margin-bottom: 14px; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+              <div style="font-size: 11px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px;">
+                SPESIFIKASI & ARSITEKTUR PERANGKAT
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; font-size: 11px;">
+                <div>
+                  <span style="color: var(--text-sub);">Hostname:</span>
+                  <div id="hw-spec-host" class="mono" style="font-weight: 600; color: #fff; margin-top: 2px;">-</div>
+                </div>
+                <div>
+                  <span style="color: var(--text-sub);">Platform/OS:</span>
+                  <div id="hw-spec-platform" class="mono" style="font-weight: 600; color: #38bdf8; margin-top: 2px;">-</div>
+                </div>
+                <div>
+                  <span style="color: var(--text-sub);">CPU Chipset:</span>
+                  <div id="hw-spec-cpu" class="mono" style="font-weight: 600; color: #34d399; margin-top: 2px;">-</div>
+                </div>
               </div>
             </div>
 
@@ -1690,12 +1736,18 @@
               apiBadge.textContent = 'API NOT INSTALLED';
             }
           }
+
+          const apiBanner = document.getElementById('hw-api-install-banner');
+          if (apiBanner) {
+            apiBanner.style.display = data.hardware.hasTermuxApi ? 'none' : 'block';
+          }
         }
 
         if (data.battery) {
+          const pct = data.battery.percentage;
           const pwrStatus = document.getElementById('hw-power-status');
           if (pwrStatus) {
-            pwrStatus.textContent = `${data.battery.percentage ?? '-'}% (${data.battery.status || data.battery.plugged || '-'})`;
+            pwrStatus.textContent = `${pct ?? '-'}% (${data.battery.status || data.battery.plugged || '-'})`;
           }
           const batTemp = document.getElementById('hw-battery-temp');
           if (batTemp) {
@@ -1705,6 +1757,40 @@
           if (batHealth) {
             batHealth.textContent = data.battery.health || 'GOOD';
           }
+
+          // Battery Visual Fill Bar & Sub-states
+          const batFill = document.getElementById('hw-battery-fill');
+          const batLabel = document.getElementById('hw-bat-pct-label');
+          const batPlug = document.getElementById('hw-bat-plug-state');
+          const batHealthState = document.getElementById('hw-bat-health-state');
+          if (pct !== null && pct !== undefined) {
+            const numPct = Math.max(0, Math.min(100, pct));
+            if (batFill) {
+              batFill.style.width = numPct + '%';
+              batFill.style.background = numPct > 50 ? '#10b981' : (numPct > 20 ? '#f59e0b' : '#f43f5e');
+            }
+            if (batLabel) {
+              batLabel.textContent = `${numPct}% (${data.battery.status || data.battery.plugged || 'Baterai'})`;
+              batLabel.style.color = numPct > 50 ? '#10b981' : (numPct > 20 ? '#f59e0b' : '#f43f5e');
+            }
+          }
+          if (batPlug) {
+            batPlug.textContent = `Sumber Daya: ${data.battery.plugged || data.battery.status || 'Baterai'}`;
+          }
+          if (batHealthState) {
+            batHealthState.textContent = `Kondisi Baterai: ${data.battery.health || 'Baik'}`;
+          }
+        }
+
+        // Hardware Specifications Box
+        const specHost = document.getElementById('hw-spec-host');
+        if (specHost) specHost.textContent = data.hostname || 'Android Server';
+        const specPlatform = document.getElementById('hw-spec-platform');
+        if (specPlatform) specPlatform.textContent = data.platform || 'Linux aarch64';
+        const specCpu = document.getElementById('hw-spec-cpu');
+        if (specCpu && data.cpu) {
+          const model = data.cpu.model ? data.cpu.model.split('@')[0].trim() : 'ARM Cortex';
+          specCpu.textContent = `${model} (${data.cpu.cores || 8} Cores)`;
         }
 
         // 10. Uptime
