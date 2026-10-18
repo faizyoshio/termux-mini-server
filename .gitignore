@@ -1,0 +1,12 @@
+# Logs
+logs/*.log
+*.log
+
+# Runtime data
+panel/state.json
+ubuntu-fs/
+.cache/
+
+# OS specific
+.DS_Store
+Thumbs.db

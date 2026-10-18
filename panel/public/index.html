@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Termux Mini Server & VPS (Tailscale Edition)</title>
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #111827;
+      --bg-card: #1f2937;
+      --bg-hover: #374151;
+      --border: #374151;
+      --border-focus: #38bdf8;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --accent: #38bdf8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --tailscale-blue: #4f46e5;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Utilitas & Tombol */
+    button, input, select, textarea { font-family: inherit; font-size: inherit; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: #fff;
+      background: var(--bg-card);
+      border-color: var(--border);
+    }
+    .btn:hover { background: var(--bg-hover); }
+    .btn-primary { background: var(--primary); border-color: var(--primary-hover); }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success { background: var(--success); }
+    .btn-danger { background: var(--danger); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-danger { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-tailscale { background: rgba(79, 70, 229, 0.2); color: #818cf8; border: 1px solid rgba(79, 70, 229, 0.4); }
+
+    /* Login Modal */
+    #login-view {
+      position: fixed;
+      inset: 0;
+      background: rgba(9, 13, 22, 0.95);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 16px;
+    }
+    .login-box {
+      width: 100%;
+      max-width: 380px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .login-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+    }
+    .form-group { margin-bottom: 16px; text-align: left; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-main);
+      outline: none;
+      transition: border 0.2s;
+    }
+    .form-input:focus { border-color: var(--border-focus); }
+
+    /* Layout Utama */
+    header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .brand span { color: var(--accent); }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+
+    .app-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar Nav */
+    nav.sidebar {
+      width: 220px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 12px 8px;
+      gap: 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .nav-item:hover { background: var(--bg-card); color: var(--text-main); }
+    .nav-item.active { background: rgba(56, 189, 248, 0.15); color: var(--accent); font-weight: 600; }
+
+    /* Content Area */
+    main.content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: var(--bg-base);
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Cards & Grids */
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .card-title { font-size: 14px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .card-value { font-size: 24px; font-weight: 700; color: var(--text-main); }
+    .card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Progress bar */
+    .progress-bar-bg {
+      background: var(--bg-hover);
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.3s; }
+
+    /* Tailscale Special Card */
+    .tailscale-box {
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(31, 41, 55, 0.8) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .tailscale-info h3 { font-size: 16px; color: #a5b4fc; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+    .tailscale-ip-display {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(0,0,0,0.3);
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    /* Terminal View */
+    .terminal-container {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      height: 550px;
+      overflow: hidden;
+    }
+    .terminal-header {
+      background: #111827;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .terminal-body {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #38bdf8;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .terminal-input-bar {
+      display: flex;
+      background: #0b1120;
+      border-top: 1px solid var(--border);
+      padding: 8px;
+      gap: 8px;
+    }
+    .terminal-input-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-family: var(--font-mono);
+      outline: none;
+    }
+
+    /* File Manager */
+    .file-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .file-table th, .file-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .file-table th { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+    .file-table tr:hover td { background: var(--bg-hover); }
+    .file-item-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .file-item-name:hover { color: var(--accent); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 100%;
+      max-width: 600px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+    }
+    .modal-body { padding: 18px; overflow-y: auto; flex: 1; }
+    .modal-footer { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .app-container { flex-direction: column; }
+      nav.sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; padding: 6px; }
+      .nav-item { padding: 6px 10px; font-size: 13px; white-space: nowrap; }
+      main.content { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Modal Login -->
+  <div id="login-view">
+    <div class="login-box">
+      <div class="login-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Termux Mini Server
+      </div>
+      <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 20px;">Masuk untuk mengelola Linux VPS & Server</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label>USERNAME</label>
+          <input type="text" id="login-user" class="form-input" value="admin" required autofocus>
+        </div>
+        <div class="form-group">
+          <label>PASSWORD</label>
+          <input type="password" id="login-pass" class="form-input" value="admin123" required>
+        </div>
+        <div id="login-error" style="color: var(--danger); font-size: 12px; margin-bottom: 12px; display: none;"></div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px;">Masuk ke Panel</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      Termux <span>MiniServer</span>
+      <span class="badge badge-tailscale" id="hdr-ts-badge">Tailscale</span>
+    </div>
+    <div class="header-actions">
+      <span id="hdr-uptime" style="color: var(--text-muted); font-size: 12px;">Uptime: -</span>
+      <button class="btn btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <!-- Container -->
+  <div class="app-container">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="nav-item active" onclick="switchTab('dashboard')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="switchTab('vps')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Ubuntu VPS
+      </div>
+      <div class="nav-item" onclick="switchTab('terminal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Web Terminal
+      </div>
+      <div class="nav-item" onclick="switchTab('files')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        File Manager
+      </div>
+      <div class="nav-item" onclick="switchTab('pm2')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        Proses & PM2
+      </div>
+      <div class="nav-item" onclick="switchTab('settings')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Pengaturan
+      </div>
+    </nav>
+
+    <!-- Main Views -->
+    <main class="content">
+
+      <!-- TAB 1: DASHBOARD -->
+      <div id="tab-dashboard" class="tab-pane active">
+
+        <!-- Tailscale Connection Highlight Banner -->
+        <div class="tailscale-box">
+          <div class="tailscale-info">
+            <h3>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+              Koneksi Jarak Jauh Tailscale (Zero Port-Forwarding)
+            </h3>
+            <p style="font-size: 13px; color: #c7d2fe;">Akses Web Dashboard dan Ubuntu SSH dari laptop/HP Anda di mana saja:</p>
+            <div class="tailscale-ip-display" id="ts-ip-text">Memeriksa Tailscale...</div>
+          </div>
+          <div>
+            <button class="btn btn-primary" onclick="copyTailscaleUrl()">Salin URL Web</button>
+            <button class="btn" onclick="openTailscaleHelp()">Panduan Setup</button>
+          </div>
+        </div>
+
+        <!-- 4 Stat Cards -->
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">PENGGUNAAN CPU</span>
+              <span class="badge badge-success" id="stat-cpu-cores">- Core</span>
+            </div>
+            <div class="card-value" id="stat-cpu-val">0%</div>
+            <div class="progress-bar-bg"><div class="progress-fill" id="stat-cpu-bar" style="width: 0%"></div></div>
+            <div class="card-sub" id="stat-cpu-model">Memuat data CPU...</div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">MEMORI RAM</span>
+              <span class="badge badge-success" id="stat-mem-pct">0%</span>
+            </div>
+            <div class="card-value" id="stat-mem-val">0 / 0 MB</div>
+            <div class="progress-bar-bg"><div class="progress-fill" id="stat-mem-bar" style="width: 0%"></div></div>
+            <div class="card-sub" id="stat-mem-free">Bebas: 0 MB</div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">PENYIMPANAN DISK</span>
+              <span class="badge badge-success" id="stat-disk-pct">0%</span>
+            </div>
+            <div class="card-value" id="stat-disk-val">0 / 0 GB</div>
+            <div class="progress-bar-bg"><div class="progress-fill" id="stat-disk-bar" style="width: 0%"></div></div>
+            <div class="card-sub" id="stat-disk-free">Sisa: 0 GB</div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">SUHU & BATERAI</span>
+              <span class="badge badge-warning" id="stat-temp-val">0 °C</span>
+            </div>
+            <div class="card-value" id="stat-bat-val">- %</div>
+            <div class="card-sub" id="stat-bat-status">Status Baterai: -</div>
+          </div>
+        </div>
+
+        <!-- Quick Info & VPS Status -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">INFORMASI JARINGAN SERVER</span>
+            </div>
+            <table style="width: 100%; font-size: 13px;">
+              <tr><td style="padding: 6px 0; color: var(--text-muted);">IP Wi-Fi Lokal:</td><td style="font-family: var(--font-mono); font-weight: 600;" id="info-local-ip">-</td></tr>
+              <tr><td style="padding: 6px 0; color: var(--text-muted);">IP Tailscale:</td><td style="font-family: var(--font-mono); color: #818cf8; font-weight: 600;" id="info-ts-ip">-</td></tr>
+              <tr><td style="padding: 6px 0; color: var(--text-muted);">Port Web Panel:</td><td style="font-family: var(--font-mono);">8080</td></tr>
+              <tr><td style="padding: 6px 0; color: var(--text-muted);">Port OpenSSH VPS:</td><td style="font-family: var(--font-mono);">2222</td></tr>
+            </table>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">KONTROL CEPAT HARDWARE HP</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+              <button class="btn btn-sm" onclick="sendDeviceAction('wakelock_on')">Aktifkan Wake-Lock</button>
+              <button class="btn btn-sm" onclick="sendDeviceAction('wakelock_off')">Lepas Wake-Lock</button>
+              <button class="btn btn-sm" onclick="sendDeviceAction('vibrate')">Uji Getar</button>
+              <button class="btn btn-sm" onclick="sendDeviceAction('torch_on')">Nyalakan Senter</button>
+              <button class="btn btn-sm" onclick="sendDeviceAction('torch_off')">Matikan Senter</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: UBUNTU VPS -->
+      <div id="tab-vps" class="tab-pane">
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <span class="card-title">STATUS UBUNTU LINUX VPS (PROOT)</span>
+            <span class="badge" id="vps-badge-status">Memeriksa...</span>
+          </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+            Distro Ubuntu asli yang berjalan di background Android. Dilengkapi OpenSSH Server aktif di port 2222.
+          </p>
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn btn-primary" onclick="vpsAction('start')">Jalankan VPS</button>
+            <button class="btn btn-danger" onclick="vpsAction('stop')">Matikan VPS</button>
+            <button class="btn" onclick="vpsAction('restart')">Restart VPS</button>
+          </div>
+
+          <div style="background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+            <h4 style="font-size: 13px; margin-bottom: 8px; color: var(--accent);">Perintah Koneksi SSH:</h4>
+            <div style="font-family: var(--font-mono); font-size: 13px; color: #fff; margin-bottom: 6px;">
+              <span style="color: var(--text-muted);"># Lewat Tailscale (Jarak Jauh):</span><br>
+              <code id="ssh-ts-cmd">ssh root@100.x.y.z -p 2222</code>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 13px; color: #fff;">
+              <span style="color: var(--text-muted);"># Lewat Wi-Fi Lokal:</span><br>
+              <code id="ssh-local-cmd">ssh root@192.168.x.x -p 2222</code>
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: var(--text-muted);">
+              Password Default: <strong style="color: #fff;">ubuntu123</strong> (User: <strong style="color: #fff;">root</strong> atau <strong style="color: #fff;">ubuntu</strong>)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: WEB TERMINAL -->
+      <div id="tab-terminal" class="tab-pane">
+        <div class="terminal-container">
+          <div class="terminal-header">
+            <span>Terminal Shell (Termux Bash)</span>
+            <div>
+              <button class="btn btn-sm btn-danger" onclick="killTerminalJob()">Hentikan (Ctrl+C)</button>
+              <button class="btn btn-sm" onclick="clearTerminal()">Bersihkan</button>
+            </div>
+          </div>
+          <div class="terminal-body" id="term-output">Termux Web Terminal Siap. Ketik perintah di bawah ini dan tekan Enter.\n</div>
+          <div class="terminal-input-bar">
+            <span style="color: var(--accent); font-family: var(--font-mono); font-weight: bold;">$</span>
+            <input type="text" id="term-input" placeholder="Ketik perintah (contoh: ls -la, htop, pkg status, ubuntu)..." onkeydown="handleTerminalKey(event)">
+            <button class="btn btn-sm btn-primary" onclick="sendTerminalCommand()">Kirim</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: FILE MANAGER -->
+      <div id="tab-files" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title" id="fm-current-dir">/data/data/com.termux/files/home</span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-sm" onclick="promptCreateFile()">+ File</button>
+              <button class="btn btn-sm" onclick="promptCreateFolder()">+ Folder</button>
+              <button class="btn btn-sm btn-primary" onclick="document.getElementById('fm-upload-input').click()">Upload File</button>
+              <input type="file" id="fm-upload-input" style="display: none;" onchange="uploadFile(this)">
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th>NAMA</th>
+                  <th>UKURAN</th>
+                  <th>MODIFIKASI</th>
+                  <th style="text-align: right;">AKSI</th>
+                </tr>
+              </thead>
+              <tbody id="file-list-body">
+                <tr><td colspan="4">Memuat berkas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: PM2 PROCESSES -->
+      <div id="tab-pm2" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">MANAJER PROSES (PM2)</span>
+            <button class="btn btn-sm" onclick="loadPm2()">Segarkan</button>
+          </div>
+          <div id="pm2-container" style="font-size: 13px;">Memeriksa PM2...</div>
+        </div>
+      </div>
+
+      <!-- TAB 6: SETTINGS -->
+      <div id="tab-settings" class="tab-pane">
+        <div class="card" style="max-width: 480px;">
+          <div class="card-header">
+            <span class="card-title">GANTI KREDENSIAL ADMIN</span>
+          </div>
+          <form id="settings-form">
+            <div class="form-group">
+              <label>PASSWORD SAAT INI</label>
+              <input type="password" id="set-cur-pass" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label>USERNAME BARU</label>
+              <input type="text" id="set-new-user" class="form-input" placeholder="Biarkan kosong jika tidak diubah">
+            </div>
+            <div class="form-group">
+              <label>PASSWORD BARU</label>
+              <input type="password" id="set-new-pass" class="form-input" placeholder="Minimal 5 karakter">
+            </div>
+            <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
+          </form>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Modal File Editor -->
+  <div id="editor-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span id="editor-filename">Edit Berkas</span>
+        <button class="btn btn-sm" onclick="closeEditor()">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 0;">
+        <textarea id="editor-content" style="width: 100%; height: 350px; background: #0b1120; color: #fff; border: none; padding: 12px; font-family: var(--font-mono); font-size: 13px; outline: none; resize: none;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeEditor()">Batal</button>
+        <button class="btn btn-primary" onclick="saveEditorFile()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Panduan Tailscale -->
+  <div id="ts-help-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Panduan Koneksi Jarak Jauh Tailscale</span>
+        <button class="btn btn-sm" onclick="document.getElementById('ts-help-modal').classList.remove('active')">✕</button>
+      </div>
+      <div class="modal-body" style="font-size: 13px; line-height: 1.7;">
+        <h4 style="color: var(--accent); margin-bottom: 6px;">1. Pasang Tailscale di HP Server (Android)</h4>
+        <p style="color: var(--text-muted); margin-bottom: 12px;">
+          Buka Play Store / F-Droid, pasang aplikasi <strong>Tailscale</strong>, lalu login menggunakan akun Google/GitHub Anda dan aktifkan VPN Tailscale.
+        </p>
+
+        <h4 style="color: var(--accent); margin-bottom: 6px;">2. Pasang Tailscale di Laptop / PC Anda</h4>
+        <p style="color: var(--text-muted); margin-bottom: 12px;">
+          Pasang Tailscale di Windows/macOS/Linux Anda dari <a href="https://tailscale.com/download" target="_blank" style="color: var(--border-focus);">tailscale.com/download</a> dan login menggunakan akun yang <strong>sama</strong>.
+        </p>
+
+        <h4 style="color: var(--accent); margin-bottom: 6px;">3. Akses Langsung</h4>
+        <p style="color: var(--text-muted);">
+          Setelah kedua perangkat terhubung, buka browser di laptop Anda dan akses:
+          <br><strong id="guide-ts-url" style="color: #34d399;">http://100.x.y.z:8080</strong>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTailscaleIp = null;
+    let currentLocalIp = '127.0.0.1';
+    let currentDir = '~';
+    let activeTerminalJobId = null;
+
+    // --- Switch Tab ---
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.classList.add('active');
+
+      const navs = document.querySelectorAll('.nav-item');
+      const tabs = ['dashboard', 'vps', 'terminal', 'files', 'pm2', 'settings'];
+      const idx = tabs.indexOf(tabId);
+      if (idx !== -1 && navs[idx]) navs[idx].classList.add('active');
+
+      if (tabId === 'files') loadFiles(currentDir);
+      if (tabId === 'vps') loadVps();
+      if (tabId === 'pm2') loadPm2();
+    }
+
+    // --- Login Handler ---
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const u = document.getElementById('login-user').value;
+      const p = document.getElementById('login-pass').value;
+      const errEl = document.getElementById('login-error');
+      errEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          document.getElementById('login-view').style.display = 'none';
+          initDashboard();
+        } else {
+          errEl.textContent = data.message || 'Login gagal';
+          errEl.style.display = 'block';
+        }
+      } catch (err) {
+        errEl.textContent = 'Koneksi error: ' + err.message;
+        errEl.style.display = 'block';
+      }
+    });
+
+    async function checkAuthStatus() {
+      try {
+        const res = await fetch('/api/system/stats');
+        if (res.status === 401) {
+          document.getElementById('login-view').style.display = 'flex';
+        } else {
+          document.getElementById('login-view').style.display = 'none';
+          initDashboard();
+        }
+      } catch (e) {
+        document.getElementById('login-view').style.display = 'flex';
+      }
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      location.reload();
+    }
+
+    // --- Dashboard Stats Refresh ---
+    async function updateStats() {
+      try {
+        const res = await fetch('/api/system/stats');
+        if (res.status === 401) return;
+        const data = await res.json();
+        if (!data.ok) return;
+
+        // CPU
+        document.getElementById('stat-cpu-val').textContent = data.cpu.percent + '%';
+        document.getElementById('stat-cpu-bar').style.width = data.cpu.percent + '%';
+        document.getElementById('stat-cpu-cores').textContent = data.cpu.cores + ' Cores';
+        document.getElementById('stat-cpu-model').textContent = data.cpu.model;
+
+        // RAM
+        document.getElementById('stat-mem-val').textContent = `${data.memory.usedMB} / ${data.memory.totalMB} MB`;
+        document.getElementById('stat-mem-bar').style.width = data.memory.percent + '%';
+        document.getElementById('stat-mem-pct').textContent = data.memory.percent + '%';
+        document.getElementById('stat-mem-free').textContent = `Bebas: ${data.memory.freeMB} MB`;
+
+        // Disk
+        document.getElementById('stat-disk-val').textContent = `${data.disk.usedGB} / ${data.disk.totalGB} GB`;
+        document.getElementById('stat-disk-bar').style.width = data.disk.percent + '%';
+        document.getElementById('stat-disk-pct').textContent = data.disk.percent + '%';
+        document.getElementById('stat-disk-free').textContent = `Sisa: ${data.disk.freeGB} GB`;
+
+        // Temp & Battery
+        document.getElementById('stat-temp-val').textContent = (data.thermal.primaryTemp || 0) + ' °C';
+        if (data.battery && data.battery.percentage !== null) {
+          document.getElementById('stat-bat-val').textContent = data.battery.percentage + '%';
+          document.getElementById('stat-bat-status').textContent = `Status: ${data.battery.status} (${data.battery.plugged})`;
+        }
+
+        // IPs
+        currentLocalIp = data.network.primaryLocalIp || '127.0.0.1';
+        document.getElementById('info-local-ip').textContent = currentLocalIp;
+
+        if (data.network.tailscale.connected) {
+          currentTailscaleIp = data.network.tailscale.ip;
+          document.getElementById('ts-ip-text').innerHTML = `🟢 ${currentTailscaleIp}:8080`;
+          document.getElementById('info-ts-ip').textContent = currentTailscaleIp;
+          document.getElementById('hdr-ts-badge').className = 'badge badge-success';
+          document.getElementById('hdr-ts-badge').textContent = 'Tailscale Online';
+          document.getElementById('ssh-ts-cmd').textContent = `ssh root@${currentTailscaleIp} -p 2222`;
+          document.getElementById('guide-ts-url').textContent = `http://${currentTailscaleIp}:8080`;
+        } else {
+          currentTailscaleIp = null;
+          document.getElementById('ts-ip-text').innerHTML = `⚠️ Belum Terhubung (Buka Tailscale di HP)`;
+          document.getElementById('info-ts-ip').textContent = 'Tidak Terdeteksi';
+          document.getElementById('hdr-ts-badge').className = 'badge badge-warning';
+          document.getElementById('hdr-ts-badge').textContent = 'Tailscale Offline';
+          document.getElementById('ssh-ts-cmd').textContent = `ssh root@<IP-Tailscale> -p 2222`;
+        }
+        document.getElementById('ssh-local-cmd').textContent = `ssh root@${currentLocalIp} -p 2222`;
+
+        // Uptime
+        const hrs = Math.floor(data.uptime / 3600);
+        const mins = Math.floor((data.uptime % 3600) / 60);
+        document.getElementById('hdr-uptime').textContent = `Uptime: ${hrs}j ${mins}m`;
+      } catch (e) {}
+    }
+
+    function initDashboard() {
+      updateStats();
+      setInterval(updateStats, 3000);
+    }
+
+    function copyTailscaleUrl() {
+      if (!currentTailscaleIp) {
+        alert('Tailscale belum terhubung pada HP Server ini. Silakan buka aplikasi Tailscale dan sambungkan VPN.');
+        return;
+      }
+      const url = `http://${currentTailscaleIp}:8080`;
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Tautan Tailscale disalin: ' + url);
+      });
+    }
+
+    function openTailscaleHelp() {
+      document.getElementById('ts-help-modal').classList.add('active');
+    }
+
+    // --- Device Hardware Controls ---
+    async function sendDeviceAction(act) {
+      try {
+        const res = await fetch('/api/device/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: act })
+        });
+        const data = await res.json();
+        alert(data.message);
+      } catch (e) {
+        alert('Gagal: ' + e.message);
+      }
+    }
+
+    // --- VPS Controls ---
+    async function loadVps() {
+      const badge = document.getElementById('vps-badge-status');
+      badge.textContent = 'Memeriksa...';
+      badge.className = 'badge badge-warning';
+      try {
+        const res = await fetch('/api/vps/status');
+        const data = await res.json();
+        if (data.vps.sshRunning) {
+          badge.textContent = 'Aktif (Port 2222)';
+          badge.className = 'badge badge-success';
+        } else {
+          badge.textContent = 'Nonaktif';
+          badge.className = 'badge badge-danger';
+        }
+      } catch (e) {
+        badge.textContent = 'Error';
+      }
+    }
+
+    async function vpsAction(action) {
+      if (!confirm(`Yakin ingin ${action} VPS?`)) return;
+      try {
+        const res = await fetch('/api/vps/' + action, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+        setTimeout(loadVps, 1500);
+      } catch (e) {
+        alert('Gagal: ' + e.message);
+      }
+    }
+
+    // --- Terminal Interactive Stream ---
+    async function sendTerminalCommand() {
+      const input = document.getElementById('term-input');
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      input.value = '';
+
+      const term = document.getElementById('term-output');
+      term.textContent += `\n$ ${cmd}\n`;
+      term.scrollTop = term.scrollHeight;
+
+      try {
+        const res = await fetch('/api/terminal/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: cmd })
+        });
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const msg = JSON.parse(line);
+              if (msg.type === 'init') {
+                activeTerminalJobId = msg.jobId;
+              } else if (msg.type === 'stdout' || msg.type === 'stderr') {
+                term.textContent += msg.data;
+                term.scrollTop = term.scrollHeight;
+              } else if (msg.type === 'exit') {
+                activeTerminalJobId = null;
+                term.textContent += `\n[Selesai dengan kode: ${msg.code}]\n`;
+                term.scrollTop = term.scrollHeight;
+              }
+            } catch (err) {}
+          }
+        }
+      } catch (e) {
+        term.textContent += `\n[Error: ${e.message}]\n`;
+      }
+    }
+
+    function handleTerminalKey(e) {
+      if (e.key === 'Enter') sendTerminalCommand();
+    }
+
+    async function killTerminalJob() {
+      if (!activeTerminalJobId) return;
+      await fetch('/api/terminal/kill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: activeTerminalJobId })
+      });
+      activeTerminalJobId = null;
+    }
+
+    function clearTerminal() {
+      document.getElementById('term-output').textContent = '';
+    }
+
+    // --- File Manager ---
+    async function loadFiles(dirPath) {
+      const tbody = document.getElementById('file-list-body');
+      tbody.innerHTML = '<tr><td colspan="4">Memuat berkas...</td></tr>';
+
+      try {
+        const res = await fetch(`/api/files/list?path=${encodeURIComponent(dirPath)}`);
+        const result = await res.json();
+        if (!result.ok) throw new Error(result.message);
+
+        currentDir = result.data.currentPath;
+        document.getElementById('fm-current-dir').textContent = currentDir;
+        tbody.innerHTML = '';
+
+        if (result.data.parentPath) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td colspan="4" class="file-item-name" onclick="loadFiles('${result.data.parentPath.replace(/\\/g, '/')}')">
+              📁 <strong>.. (Kembali ke folder atas)</strong>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        }
+
+        result.data.items.forEach(item => {
+          const tr = document.createElement('tr');
+          const cleanPath = item.path.replace(/\\/g, '/');
+          const icon = item.isDir ? '📁' : '📄';
+          const sizeStr = item.isDir ? '-' : (item.size > 1024 * 1024 ? (item.size / 1024 / 1024).toFixed(1) + ' MB' : (item.size / 1024).toFixed(1) + ' KB');
+          const dateStr = item.mtime.substring(0, 10);
+
+          tr.innerHTML = `
+            <td>
+              <div class="file-item-name" onclick="${item.isDir ? `loadFiles('${cleanPath}')` : `openEditor('${cleanPath}')`}">
+                ${icon} ${item.name}
+              </div>
+            </td>
+            <td style="color: var(--text-muted); font-size: 12px;">${sizeStr}</td>
+            <td style="color: var(--text-muted); font-size: 12px;">${dateStr}</td>
+            <td style="text-align: right;">
+              <a href="/api/files/download?path=${encodeURIComponent(cleanPath)}" class="btn btn-sm" download>Unduh</a>
+              <button class="btn btn-sm btn-danger" onclick="deleteFile('${cleanPath}')">Hapus</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" style="color: var(--danger);">Gagal memuat berkas: ${e.message}</td></tr>`;
+      }
+    }
+
+    let activeEditPath = null;
+    async function openEditor(filePath) {
+      activeEditPath = filePath;
+      document.getElementById('editor-filename').textContent = 'Edit: ' + filePath.split('/').pop();
+      try {
+        const res = await fetch(`/api/files/read?path=${encodeURIComponent(filePath)}`);
+        const data = await res.json();
+        if (data.ok) {
+          document.getElementById('editor-content').value = data.content;
+          document.getElementById('editor-modal').classList.add('active');
+        } else {
+          alert('Gagal membuka file: ' + data.message);
+        }
+      } catch (e) {
+        alert('Gagal: ' + e.message);
+      }
+    }
+
+    function closeEditor() {
+      document.getElementById('editor-modal').classList.remove('active');
+      activeEditPath = null;
+    }
+
+    async function saveEditorFile() {
+      if (!activeEditPath) return;
+      const content = document.getElementById('editor-content').value;
+      try {
+        const res = await fetch('/api/files/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: activeEditPath, content })
+        });
+        const data = await res.json();
+        alert(data.message);
+        closeEditor();
+      } catch (e) {
+        alert('Gagal menyimpan: ' + e.message);
+      }
+    }
+
+    async function promptCreateFile() {
+      const name = prompt('Masukkan nama file baru:');
+      if (!name) return;
+      const fullPath = currentDir + '/' + name;
+      await fetch('/api/files/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: fullPath, type: 'file' })
+      });
+      loadFiles(currentDir);
+    }
+
+    async function promptCreateFolder() {
+      const name = prompt('Masukkan nama folder baru:');
+      if (!name) return;
+      const fullPath = currentDir + '/' + name;
+      await fetch('/api/files/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: fullPath, type: 'folder' })
+      });
+      loadFiles(currentDir);
+    }
+
+    async function deleteFile(filePath) {
+      if (!confirm('Yakin ingin menghapus: ' + filePath + '?')) return;
+      await fetch('/api/files/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filePath })
+      });
+      loadFiles(currentDir);
+    }
+
+    async function uploadFile(input) {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch(`/api/files/upload?dir=${encodeURIComponent(currentDir)}`, {
+          method: 'POST',
+          body: formData
+        });
+        alert('File berhasil diunggah!');
+        input.value = '';
+        loadFiles(currentDir);
+      } catch (e) {
+        alert('Upload gagal: ' + e.message);
+      }
+    }
+
+    // --- PM2 ---
+    async function loadPm2() {
+      const box = document.getElementById('pm2-container');
+      box.innerHTML = 'Memuat proses...';
+      try {
+        const res = await fetch('/api/pm2/status');
+        const data = await res.json();
+        if (!data.pm2Installed) {
+          box.innerHTML = `<p style="color: var(--text-muted);">${data.message}. Pasang PM2 dengan: <code>npm install -g pm2</code></p>`;
+          return;
+        }
+        if (data.processes.length === 0) {
+          box.innerHTML = '<p style="color: var(--text-muted);">Tidak ada proses yang sedang berjalan di PM2.</p>';
+          return;
+        }
+        let html = '<table class="file-table"><thead><tr><th>ID</th><th>NAMA</th><th>STATUS</th><th>MEMORI</th><th>CPU</th></tr></thead><tbody>';
+        data.processes.forEach(p => {
+          html += `<tr>
+            <td>${p.pm_id}</td>
+            <td style="font-weight: 600;">${p.name}</td>
+            <td><span class="badge ${p.pm2_env.status === 'online' ? 'badge-success' : 'badge-danger'}">${p.pm2_env.status}</span></td>
+            <td>${Math.round((p.monit.memory || 0) / 1024 / 1024)} MB</td>
+            <td>${p.monit.cpu || 0}%</td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        box.innerHTML = html;
+      } catch (e) {
+        box.innerHTML = 'Gagal memuat PM2: ' + e.message;
+      }
+    }
+
+    // --- Settings Account ---
+    document.getElementById('settings-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPassword = document.getElementById('set-cur-pass').value;
+      const newUsername = document.getElementById('set-new-user').value;
+      const newPassword = document.getElementById('set-new-pass').value;
+
+      try {
+        const res = await fetch('/api/settings/account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword, newUsername, newPassword })
+        });
+        const data = await res.json();
+        alert(data.message);
+        if (data.ok) {
+          document.getElementById('settings-form').reset();
+        }
+      } catch (e) {
+        alert('Gagal: ' + e.message);
+      }
+    });
+
+    // Check login at start
+    checkAuthStatus();
+  </script>
+</body>
+</html>
