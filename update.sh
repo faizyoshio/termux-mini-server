@@ -43,7 +43,10 @@ if [ "$LOCAL" = "$REMOTE" ]; then
     echo -e "${GREEN}✓ Server sudah berada di versi paling mutakhir!${NC}"
 else
     echo -e "${BLUE}>> Menarik perubahan kode...${NC}"
-    git pull origin main || git pull origin
+    if ! git pull origin main 2>/dev/null; then
+        echo -e "${YELLOW}>> Menyelaraskan berkas lokal dengan repositori pusat...${NC}"
+        git reset --hard origin/main 2>/dev/null || git pull origin main
+    fi
     echo -e "${GREEN}✓ Berhasil diperbarui ke versi terbaru!${NC}"
 fi
 

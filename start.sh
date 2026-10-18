@@ -21,8 +21,117 @@ export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PREFIX/bin/applets
 
 is_port_active() {
     local port="$1"
-    netstat -tuln 2>/dev/null | grep -q ":${port} " && return 0
-    ss -tuln 2>/dev/null | grep -q ":${port} " && return 0
+
+    # 1. Direct TCP connect probe via /dev/tcp (pure bash builtin, bypass SELinux)
+    (exec 3<>/dev/tcp/127.0.0.1/"$port") 2>/dev/null && { exec 3<&-; exec 3>&-; return 0; }
+    (echo > /dev/tcp/127.0.0.1/"$port") 2>/dev/null && return 0
+
+    # 2. curl probe for port 8080 (Web Dashboard)
+    if [ "$port" = "8080" ]; then
+        curl -s --connect-timeout 1 http://127.0.0.1:8080/ >/dev/null 2>&1 && return 0
+    fi
+
+    # 3. Process inspection (detect active Node / SSHD daemon)
+    if [ "$port" = "8080" ]; then
+        pgrep -f "node.*panel/server.js" >/dev/null 2>&1 && return 0
+    elif [ "$port" = "2222" ]; then
+        pgrep -f "sshd.*2222" >/dev/null 2>&1 && return 0
+        pgrep -f "usr/sbin/sshd" >/dev/null 2>&1 && return 0
+    fi
+
+    # 4. netstat / ss fallback
+    netstat -tuln 2>/dev/null | grep -E "(:|\\.)${port}[[:space:]]" && return 0
+    ss -tuln 2>/dev/null | grep -E "(:|\\.)${port}[[:space:]]" && return 0
+
+    return 1
+}
+
+get_tailscale_ip() {
+    local ip=""
+    local conf_file="$DIR/panel/auth-config.json"
+
+    # 1. Manual override from panel config if set
+    if [ -f "$conf_file" ]; then
+        local override=$(grep -o '"tailscaleOverride": *"[^"]*"' "$conf_file" 2>/dev/null | cut -d'"' -f4)
+        if [ -n "$override" ]; then
+            echo "$override"
+            return 0
+        fi
+    fi
+
+    # 2. Node.js interface check & UDP probe to Quad-100 (100.100.100.100:53)
+    if command -v node >/dev/null 2>&1; then
+        ip=$(node -e "
+const os = require('os');
+const ifaces = os.networkInterfaces();
+for (const n of Object.keys(ifaces)) {
+  for (const net of ifaces[n]) {
+    if (net.family === 'IPv4' && !net.internal && net.address.startsWith('100.')) {
+      console.log(net.address);
+      process.exit(0);
+    }
+  }
+}
+const dgram = require('dgram');
+const s = dgram.createSocket('udp4');
+s.connect(53, '100.100.100.100', () => {
+  try {
+    const a = s.address().address;
+    if (a && a.startsWith('100.') && a !== '100.100.100.100') {
+      console.log(a);
+    }
+  } catch(e) {}
+  s.close();
+  process.exit(0);
+});
+s.on('error', () => process.exit(0));
+setTimeout(() => process.exit(0), 600);
+" 2>/dev/null)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+    fi
+
+    # 3. Probe via ip route get 100.100.100.100
+    ip=$( (ip route get 100.100.100.100 2>/dev/null || /system/bin/ip route get 100.100.100.100 2>/dev/null) | grep -Eo "src 100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | awk '{print $2}' | head -n1)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    # 4. Probe via ip -4 addr show
+    ip=$( (ip -4 addr show 2>/dev/null || /system/bin/ip -4 addr show 2>/dev/null) | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    # 5. Probe via ifconfig -a
+    ip=$( (ifconfig -a 2>/dev/null || /system/bin/ifconfig -a 2>/dev/null) | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return 0
+    fi
+
+    # 6. Probe via /proc/net/fib_trie
+    if [ -r /proc/net/fib_trie ]; then
+        ip=$(grep -B1 "host LOCAL" /proc/net/fib_trie 2>/dev/null | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+    fi
+
+    # 7. Probe via Tailscale CLI if installed in Termux
+    if command -v tailscale >/dev/null 2>&1; then
+        ip=$(tailscale ip -4 2>/dev/null | head -n1)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return 0
+        fi
+    fi
+
     return 1
 }
 
@@ -49,11 +158,11 @@ fi
 
 # 3. Ambil Informasi Alamat IP
 LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}')
-[ -z "$LOCAL_IP" ] && LOCAL_IP=$(ip -4 addr show 2>/dev/null | grep -E "inet (192\.168\.|10\.|172\.)" | awk '{print $2}' | cut -d'/' -f1 | head -n1)
+[ -z "$LOCAL_IP" ] && LOCAL_IP=$( (ip -4 addr show 2>/dev/null || ifconfig 2>/dev/null) | grep -Eo "inet (addr:)?(192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]+\.[0-9]+)" | grep -Eo "(192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]+\.[0-9]+)" | head -n1)
 LOCAL_IP="${LOCAL_IP:-127.0.0.1}"
 
 # Ambil IP Tailscale (100.x)
-TS_IP=$(ip -4 addr show 2>/dev/null | grep -E "inet 100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\." | awk '{print $2}' | cut -d'/' -f1 | head -n1)
+TS_IP=$(get_tailscale_ip)
 
 echo ""
 echo -e "${CYAN}=================================================================="

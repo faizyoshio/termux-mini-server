@@ -129,9 +129,9 @@ tms-update
 ```
 
 ### 🛠️ First-Time Update (If `tms-update` is Not Yet Installed):
-If your current installation was cloned before `tms-update` was released, run this one-line command to pull the latest update and register `tms-update`:
+If your current installation was cloned before `tms-update` was released, run this command to safely sync with the latest release and register `tms-update`:
 ```bash
-cd ~/termux-mini-server && git pull origin main && bash update.sh
+cd ~/termux-mini-server && git fetch origin main && git reset --hard origin/main && bash update.sh
 ```
 *After running this once, the `tms-update` command will be permanently available in your Termux terminal!*
 

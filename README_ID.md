@@ -129,9 +129,9 @@ tms-update
 ```
 
 ### 🛠️ Pembaruan Pertama Kali (Jika `tms-update` Belum Terpasang):
-Jika repositori Anda dipasang sebelum skrip `tms-update` dirilis, jalankan satu baris perintah ini di Termux untuk mengambil update dan mendaftarkan perintah `tms-update`:
+Jika repositori Anda dipasang sebelum skrip `tms-update` dirilis, jalankan perintah ini di Termux untuk menyelaraskan kode terbaru secara aman dan mendaftarkan perintah `tms-update`:
 ```bash
-cd ~/termux-mini-server && git pull origin main && bash update.sh
+cd ~/termux-mini-server && git fetch origin main && git reset --hard origin/main && bash update.sh
 ```
 *Setelah perintah ini dijalankan sekali, perintah `tms-update` akan aktif secara permanen di terminal Termux Anda!*
 

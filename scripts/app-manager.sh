@@ -18,8 +18,10 @@ fi
 
 is_port_active() {
     local port="$1"
-    netstat -tuln 2>/dev/null | grep -q ":${port} " && return 0
-    ss -tuln 2>/dev/null | grep -q ":${port} " && return 0
+    (exec 3<>/dev/tcp/127.0.0.1/"$port") 2>/dev/null && { exec 3<&-; exec 3>&-; return 0; }
+    (echo > /dev/tcp/127.0.0.1/"$port") 2>/dev/null && return 0
+    netstat -tuln 2>/dev/null | grep -E "(:|\\.)${port}[[:space:]]" && return 0
+    ss -tuln 2>/dev/null | grep -E "(:|\\.)${port}[[:space:]]" && return 0
     return 1
 }
 

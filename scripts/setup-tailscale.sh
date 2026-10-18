@@ -28,10 +28,35 @@ get_tailscale_ip() {
         fi
     fi
 
-    # 2. Probe kernel routing via Node.js UDP connect to Quad-100 (100.100.100.100:53)
+    # 2. Node.js interface check & UDP probe to Quad-100 (100.100.100.100:53)
     # Bypasses all Android SELinux & non-root UID sandboxes with zero external traffic
     if command -v node >/dev/null 2>&1; then
-        ip=$(node -e "const dgram = require('dgram'); const s = dgram.createSocket('udp4'); s.connect(53, '100.100.100.100', () => { const a = s.address().address; if (a && a.startsWith('100.') && a !== '100.100.100.100') console.log(a); s.close(); }); s.on('error', () => process.exit(0)); setTimeout(() => process.exit(0), 1000);" 2>/dev/null)
+        ip=$(node -e "
+const os = require('os');
+const ifaces = os.networkInterfaces();
+for (const n of Object.keys(ifaces)) {
+  for (const net of ifaces[n]) {
+    if (net.family === 'IPv4' && !net.internal && net.address.startsWith('100.')) {
+      console.log(net.address);
+      process.exit(0);
+    }
+  }
+}
+const dgram = require('dgram');
+const s = dgram.createSocket('udp4');
+s.connect(53, '100.100.100.100', () => {
+  try {
+    const a = s.address().address;
+    if (a && a.startsWith('100.') && a !== '100.100.100.100') {
+      console.log(a);
+    }
+  } catch(e) {}
+  s.close();
+  process.exit(0);
+});
+s.on('error', () => process.exit(0));
+setTimeout(() => process.exit(0), 600);
+" 2>/dev/null)
         if [ -n "$ip" ]; then
             echo "$ip"
             return 0
@@ -39,21 +64,21 @@ get_tailscale_ip() {
     fi
 
     # 3. Probe via ip route get 100.100.100.100
-    ip=$(ip route get 100.100.100.100 2>/dev/null || /system/bin/ip route get 100.100.100.100 2>/dev/null | grep -Eo "src 100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | awk '{print $2}' | head -n1)
+    ip=$( (ip route get 100.100.100.100 2>/dev/null || /system/bin/ip route get 100.100.100.100 2>/dev/null) | grep -Eo "src 100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | awk '{print $2}' | head -n1)
     if [ -n "$ip" ]; then
         echo "$ip"
         return 0
     fi
 
     # 4. Probe via ip -4 addr show (match any IP in 100.64.0.0/10)
-    ip=$(ip -4 addr show 2>/dev/null || /system/bin/ip -4 addr show 2>/dev/null | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
+    ip=$( (ip -4 addr show 2>/dev/null || /system/bin/ip -4 addr show 2>/dev/null) | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
     if [ -n "$ip" ]; then
         echo "$ip"
         return 0
     fi
 
     # 5. Probe via ifconfig -a
-    ip=$(ifconfig -a 2>/dev/null || /system/bin/ifconfig -a 2>/dev/null | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
+    ip=$( (ifconfig -a 2>/dev/null || /system/bin/ifconfig -a 2>/dev/null) | grep -Eo "100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+" | grep -v "100.100.100.100" | head -n1)
     if [ -n "$ip" ]; then
         echo "$ip"
         return 0
