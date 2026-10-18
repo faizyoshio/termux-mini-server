@@ -122,19 +122,18 @@ bash install.sh
 
 You do **NOT** need to reinstall Termux Mini Server or wipe your existing data when new features or bug fixes are published. You can update safely in-place:
 
-### Method 1: Using the Global Shortcut (Recommended)
-Simply open Termux from anywhere and run:
+### ⚡ Quick Shortcut (For Ongoing Updates):
+Once installed or updated, simply open Termux from anywhere and run:
 ```bash
 tms-update
 ```
 
-### Method 2: Manual Update via Git
-If you prefer running git commands manually:
+### 🛠️ First-Time Update (If `tms-update` is Not Yet Installed):
+If your current installation was cloned before `tms-update` was released, run this one-line command to pull the latest update and register `tms-update`:
 ```bash
-cd ~/termux-mini-server
-git pull origin main
-bash update.sh
+cd ~/termux-mini-server && git pull origin main && bash update.sh
 ```
+*After running this once, the `tms-update` command will be permanently available in your Termux terminal!*
 
 > 🔒 **Safe & Non-Destructive**: The updater preserves your custom administrator credentials (`auth-config.json`), installed 1-Click Apps, and Ubuntu filesystem data. It pulls the latest codebase, refreshes file execution permissions, re-links all global CLI commands, and gracefully restarts the web panel if it is currently running.
 

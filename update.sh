@@ -27,6 +27,13 @@ fi
 
 # 2. Ambil perubahan terbaru dari GitHub
 echo -e "${YELLOW}>> Mengambil pembaruan terbaru dari GitHub...${NC}"
+
+# Simpan cadangan auth-config.json jika sudah dikustomisasi agar tidak konflik git
+if [ -f "panel/auth-config.json" ]; then
+    cp "panel/auth-config.json" "$BASE_DIR/.auth-config.json.bak" 2>/dev/null || true
+    git checkout -- panel/auth-config.json 2>/dev/null || true
+fi
+
 git fetch origin main 2>/dev/null || git fetch origin 2>/dev/null
 
 LOCAL=$(git rev-parse HEAD 2>/dev/null)
@@ -38,6 +45,12 @@ else
     echo -e "${BLUE}>> Menarik perubahan kode...${NC}"
     git pull origin main || git pull origin
     echo -e "${GREEN}✓ Berhasil diperbarui ke versi terbaru!${NC}"
+fi
+
+# Kembalikan auth-config.json milik pengguna
+if [ -f "$BASE_DIR/.auth-config.json.bak" ]; then
+    cp "$BASE_DIR/.auth-config.json.bak" "panel/auth-config.json" 2>/dev/null || true
+    rm -f "$BASE_DIR/.auth-config.json.bak" 2>/dev/null || true
 fi
 
 # 3. Pastikan izin eksekusi skrip aman
@@ -55,6 +68,7 @@ bash "$BASE_DIR/$ctarget" "\$@"
 EOF
         chmod +x "$PREFIX_BIN/$cname"
     done
+    hash -r 2>/dev/null || true
 fi
 
 # 5. Cek apakah server panel sedang berjalan dan restart jika perlu

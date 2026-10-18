@@ -122,19 +122,18 @@ bash install.sh
 
 Anda **TIDAK PERLU** menginstall ulang atau menghapus data server yang sudah ada ketika ada pembaruan fitur atau perbaikan *bug*. Anda dapat melakukan pembaruan langsung (*in-place update*) dengan sangat aman:
 
-### Metode 1: Menggunakan Perintah Cepat (Sangat Disarankan)
-Cukup buka Termux dari mana saja dan jalankan:
+### ⚡ Pintasan Praktis (Untuk Pembaruan Berkala):
+Setelah terpasang atau diperbarui, Anda cukup mengetikkan perintah ini langsung dari mana saja di Termux:
 ```bash
 tms-update
 ```
 
-### Metode 2: Pembaruan Manual via Git
-Jika Anda ingin menjalankan perintah git secara manual:
+### 🛠️ Pembaruan Pertama Kali (Jika `tms-update` Belum Terpasang):
+Jika repositori Anda dipasang sebelum skrip `tms-update` dirilis, jalankan satu baris perintah ini di Termux untuk mengambil update dan mendaftarkan perintah `tms-update`:
 ```bash
-cd ~/termux-mini-server
-git pull origin main
-bash update.sh
+cd ~/termux-mini-server && git pull origin main && bash update.sh
 ```
+*Setelah perintah ini dijalankan sekali, perintah `tms-update` akan aktif secara permanen di terminal Termux Anda!*
 
 > 🔒 **Aman & Tidak Menghapus Data**: Skrip pembaruan ini tidak akan menimpa akun/kata sandi admin (`auth-config.json`), aplikasi 1-Click yang terpasang, maupun isi filesystem Ubuntu Anda. Skrip akan menarik kode terbaru dari GitHub, memperbarui izin eksekusi berkas, memperbarui seluruh pintasan perintah global di Termux, dan merestart dashboard web secara otomatis jika sedang aktif.
 
