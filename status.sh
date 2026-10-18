@@ -10,6 +10,8 @@ CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
 is_port_active() {
     local port="$1"
 
@@ -39,7 +41,8 @@ is_port_active() {
 
 get_tailscale_ip() {
     local ip=""
-    local conf_file="$HOME/termux-mini-server/panel/auth-config.json"
+    local conf_file="$DIR/panel/auth-config.json"
+    [ ! -f "$conf_file" ] && conf_file="$HOME/termux-mini-server/panel/auth-config.json"
 
     # 1. Manual override from panel config if set
     if [ -f "$conf_file" ]; then

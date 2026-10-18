@@ -7,12 +7,15 @@
 ARCHIVE="$1"
 
 if [ -z "$ARCHIVE" ] || [ ! -f "$ARCHIVE" ]; then
-    echo "Penggunaan: bash scripts/restore.sh /jalur/ke/tms-backup_xxx.tar.gz"
+    echo "Penggunaan: tms-restore /jalur/ke/tms-backup_xxx.tar.gz"
     exit 1
 fi
 
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PARENT_DIR="$(dirname "$DIR")"
+
 echo ">> Memulihkan sistem dari $ARCHIVE ..."
-cd "$HOME"
-tar -xzf "$ARCHIVE" -C "$HOME"
+cd "$PARENT_DIR"
+tar -xzf "$ARCHIVE" -C "$PARENT_DIR"
 echo "✓ Pemulihan data selesai!"
-echo "Silakan restart server dengan: tms-server"
+echo "Silakan restart server dengan: tms-restart (atau tms-start)"

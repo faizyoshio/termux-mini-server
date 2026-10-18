@@ -12,7 +12,7 @@ APP="$1"
 ACTION="$2"
 
 if [ -z "$APP" ] || [ -z "$ACTION" ]; then
-    echo "Penggunaan: bash scripts/app-manager.sh <adguard|mariadb|postgresql|caddy|syncthing|aria2> <install|start|stop|status>"
+    echo "Penggunaan: tms-app <adguard|mariadb|postgresql|caddy|syncthing|aria2> <install|start|stop|status>"
     exit 1
 fi
 
