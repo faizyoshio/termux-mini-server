@@ -113,8 +113,30 @@ bash install.sh
 1. Acquires Android storage permissions (`termux-setup-storage`) and enables CPU Wake-Lock (`termux-wake-lock`).
 2. Installs essential host packages: `nodejs`, `openssh`, `proot`, `proot-distro`, `curl`, `wget`, `zip`, `unzip`, `tar`, `net-tools`.
 3. Sets up the official Ubuntu rootfs via `proot-distro` and configures OpenSSH on port `2222`.
-4. Installs global CLI helper shortcuts (`tms-server`, `tms-stop`, `tms-status`, `ubuntu`).
+4. Installs global CLI helper shortcuts (`tms-server`, `tms-stop`, `tms-status`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
 5. Cleans up package caches and automatically launches the server.
+
+---
+
+## 🔄 Updating Without Reinstallation
+
+You do **NOT** need to reinstall Termux Mini Server or wipe your existing data when new features or bug fixes are published. You can update safely in-place:
+
+### Method 1: Using the Global Shortcut (Recommended)
+Simply open Termux from anywhere and run:
+```bash
+tms-update
+```
+
+### Method 2: Manual Update via Git
+If you prefer running git commands manually:
+```bash
+cd ~/termux-mini-server
+git pull origin main
+bash update.sh
+```
+
+> 🔒 **Safe & Non-Destructive**: The updater preserves your custom administrator credentials (`auth-config.json`), installed 1-Click Apps, and Ubuntu filesystem data. It pulls the latest codebase, refreshes file execution permissions, re-links all global CLI commands, and gracefully restarts the web panel if it is currently running.
 
 ---
 
@@ -178,6 +200,7 @@ Once installed, you can execute these commands from anywhere in your Termux term
 | `tms-server` | Launches both the Web Dashboard (port 8080) and Ubuntu VPS SSH (port 2222). |
 | `tms-status` | Displays live service status, active ports, Local Wi-Fi IP, and Tailscale IP. |
 | `tms-stop` | Safely terminates all panel and VPS processes. |
+| `tms-update` | Updates the server codebase to latest GitHub version without losing data. |
 | `tms-app` | Manage 1-Click Apps (`tms-app [adguard|mariadb|postgresql|caddy|syncthing|aria2] [install|start|stop|status]`). |
 | `tms-backup` | Generates a timestamped `.tar.gz` archive of configurations, databases, and panel data. |
 | `tms-restore` | Restores server data from a specified backup archive. |
@@ -190,6 +213,7 @@ Once installed, you can execute these commands from anywhere in your Termux term
 ```text
 termux-mini-server/
 ├── install.sh                # 1-Click interactive installer & Termux:Boot setup
+├── update.sh                 # Safe in-place updater (pulls latest code & reloads panel)
 ├── start.sh                  # Service launcher (Panel + VPS SSH)
 ├── stop.sh                   # Graceful service shutdown
 ├── status.sh                 # Status & IP diagnosis script

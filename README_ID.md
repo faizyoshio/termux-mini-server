@@ -113,8 +113,30 @@ bash install.sh
 1. Meminta izin penyimpanan internal Android (`termux-setup-storage`) dan mengaktifkan CPU Wake-Lock (`termux-wake-lock`).
 2. Memasang seluruh dependensi sistem: `nodejs`, `openssh`, `proot`, `proot-distro`, `curl`, `wget`, `zip`, `unzip`, `tar`, `net-tools`.
 3. Mengunduh dan memasang distro Ubuntu resmi melalui `proot-distro` serta menyetel konfigurasi OpenSSH di port `2222`.
-4. Membuat pintasan perintah terminal global (`tms-server`, `tms-stop`, `tms-status`, `ubuntu`).
+4. Membuat pintasan perintah terminal global (`tms-server`, `tms-stop`, `tms-status`, `tms-update`, `ubuntu`, `tms-app`, `tms-backup`, `tms-restore`).
 5. Membersihkan sisa *cache* instalasi dan langsung menyalakan server secara otomatis.
+
+---
+
+## 🔄 Cara Memperbarui Server (Tanpa Install Ulang)
+
+Anda **TIDAK PERLU** menginstall ulang atau menghapus data server yang sudah ada ketika ada pembaruan fitur atau perbaikan *bug*. Anda dapat melakukan pembaruan langsung (*in-place update*) dengan sangat aman:
+
+### Metode 1: Menggunakan Perintah Cepat (Sangat Disarankan)
+Cukup buka Termux dari mana saja dan jalankan:
+```bash
+tms-update
+```
+
+### Metode 2: Pembaruan Manual via Git
+Jika Anda ingin menjalankan perintah git secara manual:
+```bash
+cd ~/termux-mini-server
+git pull origin main
+bash update.sh
+```
+
+> 🔒 **Aman & Tidak Menghapus Data**: Skrip pembaruan ini tidak akan menimpa akun/kata sandi admin (`auth-config.json`), aplikasi 1-Click yang terpasang, maupun isi filesystem Ubuntu Anda. Skrip akan menarik kode terbaru dari GitHub, memperbarui izin eksekusi berkas, memperbarui seluruh pintasan perintah global di Termux, dan merestart dashboard web secara otomatis jika sedang aktif.
 
 ---
 
@@ -178,6 +200,7 @@ Setelah instalasi selesai, Anda dapat menjalankan perintah singkat ini langsung 
 | `tms-server` | Menjalankan Web Dashboard (port 8080) dan Ubuntu VPS SSH (port 2222). |
 | `tms-status` | Memeriksa status port, menampilkan IP Wi-Fi lokal dan IP Tailscale aktif. |
 | `tms-stop` | Menghentikan seluruh proses server dan Ubuntu VPS secara aman. |
+| `tms-update` | Memperbarui kode repositori ke versi terbaru dari GitHub tanpa menghapus data. |
 | `tms-app` | Manajemen App Store (`tms-app [adguard|mariadb|postgresql|caddy|syncthing|aria2] [install|start|stop|status]`). |
 | `tms-backup` | Membuat arsip cadangan sistem `.tar.gz` (konfigurasi, database, dan data panel). |
 | `tms-restore` | Memulihkan sistem dari berkas arsip cadangan yang ditentukan. |
@@ -190,6 +213,7 @@ Setelah instalasi selesai, Anda dapat menjalankan perintah singkat ini langsung 
 ```text
 termux-mini-server/
 ├── install.sh                # Skrip instalasi otomatis 1-klik & setup Termux:Boot
+├── update.sh                 # Skrip pembaruan otomatis tanpa perlu install ulang
 ├── start.sh                  # Skrip peluncur layanan (Panel + VPS SSH)
 ├── stop.sh                   # Skrip penghenti layanan
 ├── status.sh                 # Skrip diagnostik status port & IP

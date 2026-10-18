@@ -194,6 +194,13 @@ EOF
 bash "$BASE_DIR/scripts/restore.sh" "\$@"
 EOF
     chmod +x "$PREFIX_BIN/tms-restore"
+
+    # tms-update: Update server tanpa install ulang
+    cat << EOF > "$PREFIX_BIN/tms-update"
+#!/data/data/com.termux/files/usr/bin/bash
+bash "$BASE_DIR/update.sh" "\$@"
+EOF
+    chmod +x "$PREFIX_BIN/tms-update"
 fi
 
 # Setup Autostart Termux:Boot jika aplikasi terpasang
@@ -228,6 +235,7 @@ echo -e " 📌 Perintah Cepat di Termux:"
 echo -e "   - Jalankan server : ${CYAN}tms-server${NC}"
 echo -e "   - Hentikan server : ${CYAN}tms-stop${NC}"
 echo -e "   - Cek status/IP   : ${CYAN}tms-status${NC}"
+echo -e "   - Update server   : ${CYAN}tms-update${NC}"
 echo -e "   - Masuk ke Ubuntu : ${CYAN}ubuntu${NC}"
 echo -e "${GREEN}└─────────────────────────────────────────────────────────────┘${NC}"
 echo ""
