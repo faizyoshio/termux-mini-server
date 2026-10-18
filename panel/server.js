@@ -1040,13 +1040,36 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/terminal/stream' && req.method === 'POST') {
       try {
         const body = await parseJSONBody(req);
-        const command = (body.command || '').trim();
+        let command = (body.command || '').trim();
         const jobId = 'job_' + Date.now();
         const cwd = body.cwd ? resolveSafePath(body.cwd) : DEFAULT_ROOT_DIR;
 
         if (!command) {
           sendJSON(res, 400, { ok: false, message: 'Perintah kosong' });
           return;
+        }
+
+        // Intercept curses/interactive editors that require interactive PTY
+        if (/^(nano|vi|vim)\b/.test(command)) {
+          res.writeHead(200, {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Transfer-Encoding': 'chunked'
+          });
+          res.write(JSON.stringify({ type: 'init', jobId }) + '\n');
+          res.write(JSON.stringify({ type: 'stdout', data: '\x1b[33m⚠️ Editor teks interaktif (' + command + ') memerlukan sesi terminal SSH penuh.\n💡 Silakan gunakan tab "File Manager" di panel web ini untuk mengedit file dengan mudah, atau login via SSH di port 2222.\x1b[0m\n' }) + '\n');
+          res.write(JSON.stringify({ type: 'exit', code: 0 }) + '\n');
+          res.end();
+          return;
+        }
+
+        // If user typed htop or top without batch mode, run clean batch top
+        if (command === 'htop' || command === 'top') {
+          command = 'top -b -n 1 | head -n 30';
+        }
+
+        // If user typed ping without -c count flag, default to 4 packets so it doesn't loop endlessly
+        if (/^ping\s+/.test(command) && !/-(c|w)\b/.test(command)) {
+          command = command.replace(/^ping\s+/, 'ping -c 4 ');
         }
 
         const isWin = os.platform() === 'win32';

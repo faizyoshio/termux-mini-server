@@ -336,19 +336,21 @@
     .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
     /* Terminal */
+    /* Terminal */
     .term-window {
-      background: #05070b;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      background: #050811;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
       display: flex;
       flex-direction: column;
-      height: 580px;
+      height: 600px;
       overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     }
     .term-topbar {
-      background: var(--bg-surface);
-      padding: 8px 14px;
-      border-bottom: 1px solid var(--border);
+      background: #0d131f;
+      padding: 9px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -357,49 +359,88 @@
       color: var(--text-muted);
     }
     .term-shortcuts {
-      background: var(--bg-card);
-      padding: 6px 12px;
-      border-bottom: 1px solid var(--border);
+      background: #080d16;
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       display: flex;
+      align-items: center;
       gap: 6px;
       overflow-x: auto;
     }
     .term-pill {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      padding: 3px 8px;
+      background: #111827;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      padding: 4px 9px;
       border-radius: 4px;
       font-size: 11px;
       font-family: var(--font-mono);
-      color: var(--cyan);
+      color: #38bdf8;
       cursor: pointer;
       white-space: nowrap;
+      transition: all 0.15s ease;
     }
-    .term-pill:hover { background: var(--bg-card-hover); border-color: var(--cyan); }
+    .term-pill:hover {
+      background: #1e293b;
+      border-color: #38bdf8;
+      color: #fff;
+    }
     .term-screen {
       flex: 1;
-      padding: 14px;
+      padding: 16px;
       overflow-y: auto;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      color: #38bdf8;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #e2e8f0;
+      background: #050811;
       white-space: pre-wrap;
-      word-break: break-all;
+      word-break: normal;
+      overflow-wrap: anywhere;
+      user-select: text;
+    }
+    .term-screen::-webkit-scrollbar {
+      width: 6px;
+    }
+    .term-screen::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    .term-line-cmd {
+      margin-top: 10px;
+      margin-bottom: 4px;
+      padding: 2px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+    }
+    .term-ps1 {
+      color: #06b6d4;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .term-cmd-text {
+      color: #f8fafc;
+      font-weight: 600;
+    }
+    .term-line-exit {
+      margin-top: 4px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      opacity: 0.85;
+      font-style: italic;
     }
     .term-prompt-line {
       display: flex;
       align-items: center;
-      background: #080c14;
-      border-top: 1px solid var(--border);
-      padding: 8px 12px;
-      gap: 8px;
+      background: #090e18;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 9px 14px;
+      gap: 10px;
     }
     .term-prompt-line input {
       flex: 1;
       background: transparent;
       border: none;
-      color: #fff;
-      font-family: var(--font-mono);
+      color: #f8fafc;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, Menlo, monospace;
       font-size: 13px;
       outline: none;
     }
@@ -833,29 +874,37 @@
       <div id="view-terminal" class="view-pane">
         <div class="term-window">
           <div class="term-topbar">
-            <span>Terminal Shell (Termux Bash Console)</span>
-            <div>
-              <button class="btn btn-xs btn-danger" onclick="killActiveTerminal()">Ctrl + C</button>
-              <button class="btn btn-xs" onclick="clearTermScreen()">Clear</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px rgba(34,197,94,0.6);"></span>
+              <span style="font-weight: 600; color: #f8fafc;">Termux Bash Console</span>
+              <span style="color: var(--text-sub); font-size: 11px;">(Bash &bull; ANSI Color &bull; UTF-8)</span>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-xs" onclick="copyTermOutput()" title="Salin seluruh isi output">📋 Salin</button>
+              <button class="btn btn-xs btn-danger" onclick="killActiveTerminal()" title="Hentikan proses yang sedang berjalan (SIGINT)">⏹ Ctrl + C</button>
+              <button class="btn btn-xs" onclick="clearTermScreen()" title="Bersihkan layar">🧹 Clear</button>
             </div>
           </div>
 
           <!-- Quick Command Launcher Pills -->
           <div class="term-shortcuts">
-            <span style="font-size: 11px; color: var(--text-sub); align-self: center;">Pintasan:</span>
-            <span class="term-pill" onclick="runPreset('htop')">htop</span>
+            <span style="font-size: 11px; color: var(--text-sub); align-self: center; font-weight: 600;">Pintasan:</span>
+            <span class="term-pill" onclick="runPreset('tms-status')">tms-status</span>
+            <span class="term-pill" onclick="runPreset('top -b -n 1 | head -n 25')">top (1x)</span>
             <span class="term-pill" onclick="runPreset('free -h')">free -h</span>
             <span class="term-pill" onclick="runPreset('df -h')">df -h</span>
             <span class="term-pill" onclick="runPreset('ip a')">ip a</span>
-            <span class="term-pill" onclick="runPreset('ps aux | head -n 15')">ps aux</span>
-            <span class="term-pill" onclick="runPreset('pkg status')">pkg status</span>
-            <span class="term-pill" onclick="runPreset('tms-status')">tms-status</span>
+            <span class="term-pill" onclick="runPreset('uptime')">uptime</span>
+            <span class="term-pill" onclick="runPreset('ps aux --sort=-%cpu | head -n 15')">ps aux</span>
+            <span class="term-pill" onclick="runPreset('ping -c 4 1.1.1.1')">ping 1.1.1.1</span>
+            <span class="term-pill" onclick="runPreset('tms-update')">tms-update</span>
           </div>
 
-          <div class="term-screen" id="term-display">Termux Web Terminal Siap. Ketik perintah di bawah dan tekan Enter.&#10;</div>
+          <div class="term-screen" id="term-display"><span style="color: #64748b; font-style: italic;">Termux Web Terminal Siap. Ketik perintah di bawah dan tekan Enter.</span>
+</div>
           <div class="term-prompt-line">
-            <span style="color: var(--cyan); font-family: var(--font-mono); font-weight: 700;">$</span>
-            <input type="text" id="term-cmd-input" placeholder="Ketik perintah bash..." onkeydown="onTermKey(event)">
+            <span style="color: #06b6d4; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px;">$</span>
+            <input type="text" id="term-cmd-input" placeholder="Ketik perintah bash (contoh: ls -la, tms-status, ping -c 3 8.8.8.8)..." onkeydown="onTermKey(event)">
             <button class="btn btn-xs btn-primary" onclick="submitTermCmd()">Kirim</button>
           </div>
         </div>
@@ -1364,6 +1413,108 @@
       setTimeout(fetchVpsData, 1000);
     }
 
+    // Terminal ANSI Color & Control Sequence Decoder
+    function get256Color(idx) {
+      if (idx < 16) {
+        const std = ['#000000','#ef4444','#22c55e','#eab308','#3b82f6','#a855f7','#06b6d4','#e5e7eb',
+                     '#6b7280','#f87171','#4ade80','#fde047','#60a5fa','#c084fc','#22d3ee','#ffffff'];
+        return std[idx] || '#e5e7eb';
+      }
+      if (idx >= 232) {
+        const g = Math.round((idx - 232) * 10 + 8).toString(16).padStart(2, '0');
+        return '#' + g + g + g;
+      }
+      idx -= 16;
+      const b = idx % 6; idx = Math.floor(idx / 6);
+      const g = idx % 6; const r = Math.floor(idx / 6);
+      const cv = [0, 95, 135, 175, 215, 255];
+      return '#' + cv[r].toString(16).padStart(2,'0') + cv[g].toString(16).padStart(2,'0') + cv[b].toString(16).padStart(2,'0');
+    }
+
+    function ansiToHtml(text) {
+      if (!text) return '';
+
+      const fgColors = {
+        30: '#4b5563', 31: '#ef4444', 32: '#22c55e', 33: '#eab308',
+        34: '#3b82f6', 35: '#a855f7', 36: '#06b6d4', 37: '#e5e7eb',
+        90: '#9ca3af', 91: '#f87171', 92: '#4ade80', 93: '#fde047',
+        94: '#60a5fa', 95: '#c084fc', 96: '#22d3ee', 97: '#ffffff'
+      };
+      const bgColors = {
+        40: '#111827', 41: '#7f1d1d', 42: '#14532d', 43: '#713f12',
+        44: '#1e3a8a', 45: '#581c87', 46: '#164e63', 47: '#374151',
+        100: '#1f2937', 101: '#991b1b', 102: '#166534', 103: '#854d0e',
+        104: '#1e40af', 105: '#6b21a8', 106: '#155e75', 107: '#4b5563'
+      };
+
+      // Strip non-color VT100 cursor & screen mode sequences (keeps \x1b[...m)
+      let clean = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\x1b\[\?[0-9;]*[a-zA-Z]/g, '')     // e.g. \x1b[?1049h, \x1b[?25l
+        .replace(/\x1b\[[0-9;]*[A-LN-Za-ln-z]/g, '') // cursor moves, clear screen/line, NOT 'm'
+        .replace(/\x1b\[\d+;\d+[tHf]/g, '')          // cursor position
+        .replace(/\x1b[>=]/g, '')                    // keypad modes
+        .replace(/\x1b[()][0-9A-Za-z]/g, '')         // charsets
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1A\x1C-\x1F\x7F]/g, ''); // strip non-printables except \n, \t, \x1B
+
+      const parts = clean.split(/(\x1b\[[0-9;]*m)/g);
+      let out = '';
+      let curFg = '';
+      let curBg = '';
+      let isBold = false;
+      let isDim = false;
+      let isUnderline = false;
+
+      for (const part of parts) {
+        if (part.startsWith('\x1b[')) {
+          const codeStr = part.slice(2, -1);
+          const codes = codeStr ? codeStr.split(';').map(c => parseInt(c, 10)) : [0];
+          for (let i = 0; i < codes.length; i++) {
+            const c = isNaN(codes[i]) ? 0 : codes[i];
+            if (c === 0) {
+              curFg = ''; curBg = ''; isBold = false; isDim = false; isUnderline = false;
+            } else if (c === 1) isBold = true;
+            else if (c === 2) isDim = true;
+            else if (c === 4) isUnderline = true;
+            else if (c === 22) { isBold = false; isDim = false; }
+            else if (c === 24) isUnderline = false;
+            else if (c === 39) curFg = '';
+            else if (c === 49) curBg = '';
+            else if (fgColors[c]) curFg = fgColors[c];
+            else if (bgColors[c]) curBg = bgColors[c];
+            else if ((c === 38 || c === 48) && codes[i + 1] === 5 && codes[i + 2] !== undefined) {
+              const hex = get256Color(codes[i + 2]);
+              if (c === 38) curFg = hex; else curBg = hex;
+              i += 2;
+            }
+          }
+        } else {
+          if (!part) continue;
+          const escaped = part
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+          let style = '';
+          if (curFg) style += 'color:' + curFg + ';';
+          if (curBg) style += 'background:' + curBg + ';';
+          if (isBold) style += 'font-weight:700;';
+          if (isDim) style += 'opacity:0.65;';
+          if (isUnderline) style += 'text-decoration:underline;';
+
+          if (style) out += '<span style="' + style + '">' + escaped + '</span>';
+          else out += escaped;
+        }
+      }
+      return out;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     // Terminal
     async function submitTermCmd() {
       const input = document.getElementById('term-cmd-input');
@@ -1374,7 +1525,7 @@
       input.value = '';
 
       const scr = document.getElementById('term-display');
-      scr.textContent += `\n$ ${cmd}\n`;
+      scr.insertAdjacentHTML('beforeend', `\n<div class="term-line-cmd"><span class="term-ps1">$</span><span class="term-cmd-text">${escapeHtml(cmd)}</span></div>`);
       scr.scrollTop = scr.scrollHeight;
 
       try {
@@ -1401,18 +1552,28 @@
               const msg = JSON.parse(line);
               if (msg.type === 'init') activeTermJobId = msg.jobId;
               else if (msg.type === 'stdout' || msg.type === 'stderr') {
-                scr.textContent += msg.data;
+                const isErr = msg.type === 'stderr';
+                const html = ansiToHtml(msg.data);
+                if (isErr && !html.includes('style=')) {
+                  scr.insertAdjacentHTML('beforeend', `<span style="color:#f87171;">${html}</span>`);
+                } else {
+                  scr.insertAdjacentHTML('beforeend', html);
+                }
+                if (scr.innerHTML.length > 250000) {
+                  scr.innerHTML = scr.innerHTML.slice(-150000);
+                }
                 scr.scrollTop = scr.scrollHeight;
               } else if (msg.type === 'exit') {
                 activeTermJobId = null;
-                scr.textContent += `\n[Selesai dengan status ${msg.code}]\n`;
+                const statusColor = msg.code === 0 ? '#4ade80' : '#f87171';
+                scr.insertAdjacentHTML('beforeend', `\n<div class="term-line-exit" style="color:${statusColor};">[Selesai dengan status ${msg.code}]</div>`);
                 scr.scrollTop = scr.scrollHeight;
               }
             } catch (err) {}
           }
         }
       } catch (e) {
-        scr.textContent += `\n[Error: ${e.message}]\n`;
+        scr.insertAdjacentHTML('beforeend', `\n<div class="term-line-exit" style="color:#f87171;">[Error: ${escapeHtml(e.message)}]</div>`);
       }
     }
 
@@ -1450,8 +1611,19 @@
       showToast('Perintah dihentikan (SIGINT)', 'info');
     }
 
+    function copyTermOutput() {
+      const scr = document.getElementById('term-display');
+      const text = scr.innerText || scr.textContent;
+      if (!text || text.trim() === '') return showToast('Terminal masih kosong', 'info');
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Output terminal berhasil disalin ke clipboard!', 'success');
+      }).catch(() => {
+        showToast('Gagal menyalin output ke clipboard', 'warn');
+      });
+    }
+
     function clearTermScreen() {
-      document.getElementById('term-display').textContent = '';
+      document.getElementById('term-display').innerHTML = '<span style="color:#64748b;font-style:italic;">Terminal dibersihkan. Ketik perintah di bawah dan tekan Enter.</span>\n';
     }
 
     // File Manager
